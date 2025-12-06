@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Navbar from '../components/Navbar';
 import BackToTop from '../components/BackToTop';
-import { createArticle, login, uploadMedia } from '../lib/api';
+import { createArticle, deleteArticle, fetchArticles, login, updateArticle, uploadMedia } from '../lib/api';
+import type { Article } from '../types';
 
 const makeSlug = (text: string) =>
   text
@@ -34,6 +35,9 @@ export default function AdminPage() {
   const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const [message, setMessage] = useState('');
   const [loginMessage, setLoginMessage] = useState('');
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [filterCategory, setFilterCategory] = useState<'all' | 'article' | 'portfolio' | 'review'>('all');
 
   useEffect(() => {
     const savedToken = localStorage.getItem('hatfix_admin_token');
@@ -41,6 +45,9 @@ export default function AdminPage() {
     if (savedToken) {
       setToken(savedToken);
       setIsAuthed(true);
+      fetchArticles()
+        .then(setArticles)
+        .catch(() => {});
     }
     if (savedEmail) setLoginEmail(savedEmail);
   }, []);
@@ -59,6 +66,9 @@ export default function AdminPage() {
       setIsAuthed(true);
       setLoginMessage('');
       setLoginPassword('');
+      fetchArticles()
+        .then(setArticles)
+        .catch(() => {});
     } catch (err) {
       console.error(err);
       setLoginMessage('เข้าสู่ระบบไม่สำเร็จ ตรวจสอบอีเมล/รหัสผ่าน');
@@ -100,23 +110,29 @@ export default function AdminPage() {
         if (uploadRes.video) uploadedVideo = uploadRes.video.url;
       }
 
-      await createArticle(
-        {
-          slug,
-          title,
-          summary,
-          body,
-          category,
-          mainImageUrl: uploadedMain || imageUrl || uploadedGallery.find(Boolean) || undefined,
-          galleryUrls: uploadedGallery,
-          imageUrl: uploadedMain || imageUrl || undefined,
-          videoUrl: uploadedVideo || undefined,
-          publishedAt: publishedAt || undefined
-        },
-        token
-      );
+      const payload = {
+        slug,
+        title,
+        summary,
+        body,
+        category,
+        mainImageUrl: uploadedMain || imageUrl || uploadedGallery.find(Boolean) || undefined,
+        galleryUrls: uploadedGallery,
+        imageUrl: uploadedMain || imageUrl || undefined,
+        videoUrl: uploadedVideo || undefined,
+        publishedAt: publishedAt || undefined
+      };
+
+      if (editingId) {
+        const updated = await updateArticle(editingId, payload, token);
+        setArticles((prev) => prev.map((a) => (a.id === editingId ? updated : a)));
+        setMessage('อัปเดตบทความเรียบร้อย!');
+      } else {
+        const created = await createArticle(payload as any, token);
+        setArticles((prev) => [created, ...prev]);
+        setMessage('บันทึกบทความเรียบร้อย!');
+      }
       setStatus('done');
-      setMessage('บันทึกบทความเรียบร้อย!');
       setSlug('');
       setTitle('');
       setSummary('');
@@ -130,6 +146,7 @@ export default function AdminPage() {
       setGalleryFiles([]);
       setVideoFile(null);
       setPublishedAt('');
+      setEditingId(null);
     } catch (err) {
       console.error(err);
       setStatus('error');
@@ -355,13 +372,87 @@ export default function AdminPage() {
               className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-green-700 transition"
               disabled={status === 'saving'}
             >
-              {status === 'saving' ? 'กำลังบันทึก...' : 'เผยแพร่บทความ'}
+              {status === 'saving' ? 'กำลังบันทึก...' : editingId ? 'อัปเดตบทความ' : 'เผยแพร่บทความ'}
             </button>
           </div>
           {message && (
             <p className={`text-sm ${status === 'error' ? 'text-red-500' : 'text-green-600'}`}>{message}</p>
           )}
         </form>
+        )}
+
+        {isAuthed && (
+          <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">รายการบทความ/ผลงาน/รีวิว</h2>
+              <div className="flex gap-2 text-sm">
+                {['all', 'article', 'portfolio', 'review'].map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setFilterCategory(c as any)}
+                    className={`px-3 py-1 rounded-full border ${
+                      filterCategory === c ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {c === 'all' ? 'ทั้งหมด' : c === 'article' ? 'บทความ' : c === 'portfolio' ? 'ผลงาน' : 'รีวิว'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3 max-h-[420px] overflow-auto">
+              {articles
+                .filter((a) => filterCategory === 'all' || (a.category || 'article') === filterCategory)
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    className="border rounded-xl px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">
+                        {new Date(item.publishedAt).toLocaleDateString('th-TH')} • {item.category || 'article'}
+                      </p>
+                      <p className="font-semibold text-gray-800 truncate">{item.title}</p>
+                      <p className="text-sm text-gray-600 line-clamp-1">{item.summary}</p>
+                    </div>
+                    <div className="flex gap-3 shrink-0">
+                      <button
+                        type="button"
+                        className="text-sm text-primary hover:underline"
+                        onClick={() => {
+                          setEditingId(item.id);
+                          setSlug(item.slug);
+                          setTitle(item.title);
+                          setSummary(item.summary);
+                          setBody(item.body);
+                          setCategory((item.category as any) || 'article');
+                          setMainImageUrl(item.mainImageUrl || '');
+                          setGalleryUrls(item.galleryUrls || ['']);
+                          setVideoUrl(item.videoUrl || '');
+                          setPublishedAt(item.publishedAt ? item.publishedAt.slice(0, 16) : '');
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        แก้ไข
+                      </button>
+                      <button
+                        type="button"
+                        className="text-sm text-red-500 hover:underline"
+                        onClick={async () => {
+                          if (!token) return;
+                          if (!confirm('ลบบทความนี้?')) return;
+                          await deleteArticle(item.id, token);
+                          setArticles((prev) => prev.filter((a) => a.id !== item.id));
+                          if (editingId === item.id) setEditingId(null);
+                        }}
+                      >
+                        ลบ
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
         )}
       </div>
       <BackToTop />
