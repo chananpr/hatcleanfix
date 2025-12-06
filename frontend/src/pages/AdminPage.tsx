@@ -4,6 +4,14 @@ import Navbar from '../components/Navbar';
 import BackToTop from '../components/BackToTop';
 import { createArticle, login, uploadMedia } from '../lib/api';
 
+const makeSlug = (text: string) =>
+  text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9ก-๙\s-]/gi, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+
 export default function AdminPage() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
@@ -185,7 +193,7 @@ export default function AdminPage() {
         )}
 
         {isAuthed && (
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
@@ -195,6 +203,18 @@ export default function AdminPage() {
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder="เช่น how-to-clean-vintage-cap"
               />
+              <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                <span>ใช้ a-z, ตัวเลข, ขีดกลาง</span>
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => {
+                    if (title) setSlug(makeSlug(title));
+                  }}
+                >
+                  เติมจากหัวข้อ
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">วันที่เผยแพร่</label>
@@ -214,6 +234,7 @@ export default function AdminPage() {
               onChange={(e) => setTitle(e.target.value)}
               placeholder="ชื่อบทความ"
             />
+            <p className="text-xs text-gray-500 mt-1">แนะนำให้มีคีย์เวิร์ดหลักสำหรับ SEO</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">หมวด *</label>
