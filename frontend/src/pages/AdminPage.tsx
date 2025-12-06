@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Navbar from '../components/Navbar';
 import BackToTop from '../components/BackToTop';
 import { createArticle } from '../lib/api';
 
 export default function AdminPage() {
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [loginSecret, setLoginSecret] = useState('');
+
   const [slug, setSlug] = useState('');
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
@@ -15,6 +18,30 @@ export default function AdminPage() {
   const [adminSecret, setAdminSecret] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('hatfix_admin_secret');
+    if (saved) {
+      setLoginSecret(saved);
+      setAdminSecret(saved);
+      setIsAuthed(true);
+    }
+  }, []);
+
+  const handleLogin = (e: FormEvent) => {
+    e.preventDefault();
+    if (!loginSecret.trim()) return;
+    localStorage.setItem('hatfix_admin_secret', loginSecret.trim());
+    setAdminSecret(loginSecret.trim());
+    setIsAuthed(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('hatfix_admin_secret');
+    setIsAuthed(false);
+    setLoginSecret('');
+    setAdminSecret('');
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -58,12 +85,48 @@ export default function AdminPage() {
     <div className="bg-gray-50 min-h-screen text-gray-900">
       <Navbar />
       <div className="pt-24 pb-12 container mx-auto px-4 max-w-4xl">
-        <h1 className="text-3xl font-bold mb-6">Admin: เพิ่มบทความใหม่</h1>
+        <div className="flex items-center justify-between gap-4 mb-2">
+          <h1 className="text-3xl font-bold">Admin: เพิ่มบทความใหม่</h1>
+          {isAuthed && (
+            <button
+              onClick={handleLogout}
+              className="text-sm text-red-500 hover:text-red-600 underline"
+              type="button"
+            >
+              ออกจากระบบ
+            </button>
+          )}
+        </div>
         <p className="text-gray-600 mb-6">
           ตั้งค่า API base ได้ที่ env <code className="bg-gray-100 px-2 py-1 rounded">VITE_API_URL</code> (ปัจจุบันเชื่อม{' '}
           {import.meta.env.VITE_API_URL || 'http://localhost:5000/api'})
         </p>
 
+        {!isAuthed && (
+          <form
+            onSubmit={handleLogin}
+            className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-4 max-w-xl"
+          >
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Admin Secret</label>
+              <input
+                className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
+                value={loginSecret}
+                onChange={(e) => setLoginSecret(e.target.value)}
+                placeholder="ใส่รหัส secret ที่ backend"
+              />
+              <p className="text-xs text-gray-500 mt-2">รหัสนี้ถูกเก็บใน browser (localStorage) เท่านั้น</p>
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-green-700 transition"
+            >
+              เข้าสู่ระบบ
+            </button>
+          </form>
+        )}
+
+        {isAuthed && (
         <form onSubmit={handleSubmit} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -140,7 +203,10 @@ export default function AdminPage() {
               <input
                 className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
                 value={adminSecret}
-                onChange={(e) => setAdminSecret(e.target.value)}
+                onChange={(e) => {
+                  setAdminSecret(e.target.value);
+                  localStorage.setItem('hatfix_admin_secret', e.target.value);
+                }}
                 placeholder="x-admin-secret"
               />
             </div>
@@ -156,6 +222,7 @@ export default function AdminPage() {
             <p className={`text-sm ${status === 'error' ? 'text-red-500' : 'text-green-600'}`}>{message}</p>
           )}
         </form>
+        )}
       </div>
       <BackToTop />
     </div>
