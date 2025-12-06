@@ -13,7 +13,10 @@ export default function AdminPage() {
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [body, setBody] = useState('');
+  const [category, setCategory] = useState<'article' | 'portfolio' | 'review'>('article');
   const [imageUrl, setImageUrl] = useState('');
+  const [mainImageUrl, setMainImageUrl] = useState('');
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(['']);
   const [videoUrl, setVideoUrl] = useState('');
   const [publishedAt, setPublishedAt] = useState('');
   const [token, setToken] = useState('');
@@ -76,6 +79,9 @@ export default function AdminPage() {
           title,
           summary,
           body,
+          category,
+          mainImageUrl: mainImageUrl || imageUrl || galleryUrls.find(Boolean) || undefined,
+          galleryUrls: galleryUrls.filter((u) => u.trim()),
           imageUrl: imageUrl || undefined,
           videoUrl: videoUrl || undefined,
           publishedAt: publishedAt || undefined
@@ -88,7 +94,10 @@ export default function AdminPage() {
       setTitle('');
       setSummary('');
       setBody('');
+      setCategory('article');
       setImageUrl('');
+      setMainImageUrl('');
+      setGalleryUrls(['']);
       setVideoUrl('');
       setPublishedAt('');
     } catch (err) {
@@ -185,6 +194,18 @@ export default function AdminPage() {
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">หมวด *</label>
+            <select
+              className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary bg-white"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as any)}
+            >
+              <option value="article">บทความ</option>
+              <option value="portfolio">ผลงานของเรา</option>
+              <option value="review">รีวิวจากลูกค้า</option>
+            </select>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">สรุปสั้น ๆ *</label>
             <textarea
               className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
@@ -206,12 +227,12 @@ export default function AdminPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">รูปปก (URL)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">รูปหลัก (Main)</label>
               <input
                 className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
+                value={mainImageUrl}
+                onChange={(e) => setMainImageUrl(e.target.value)}
+                placeholder="https://... (ภาพหลัก)"
               />
             </div>
             <div>
@@ -222,6 +243,51 @@ export default function AdminPage() {
                 onChange={(e) => setVideoUrl(e.target.value)}
                 placeholder="https://youtu.be/..."
               />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">แกลเลอรี่รูป (เลือก main ได้จากรายการนี้หรือช่องด้านบน)</label>
+              <button
+                type="button"
+                onClick={() => setGalleryUrls([...galleryUrls, ''])}
+                className="text-sm text-primary hover:underline"
+              >
+                + เพิ่มรูป
+              </button>
+            </div>
+            <div className="space-y-2">
+              {galleryUrls.map((url, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    className="flex-1 rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:border-primary"
+                    value={url}
+                    onChange={(e) => {
+                      const next = [...galleryUrls];
+                      next[idx] = e.target.value;
+                      setGalleryUrls(next);
+                    }}
+                    placeholder={`รูปที่ ${idx + 1} (https://...)`}
+                  />
+                  <label className="flex items-center gap-1 text-sm">
+                    <input
+                      type="radio"
+                      name="mainImage"
+                      checked={(mainImageUrl || '') === url}
+                      onChange={() => setMainImageUrl(url)}
+                    />
+                    main
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setGalleryUrls(galleryUrls.filter((_, i) => i !== idx))}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    ลบ
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
