@@ -437,11 +437,8 @@ export default function LandingPage() {
               <h2 className="text-3xl font-bold text-gray-800">บทความ &amp; ทริคเพิ่มยอดขาย</h2>
               <p className="text-gray-600">แชร์ความรู้เรื่องดูแลหมวกมือสอง เพิ่ม SEO และความน่าเชื่อถือ</p>
             </div>
-            <Link
-              to="/admin"
-              className="inline-flex items-center gap-2 text-sm text-primary font-semibold hover:text-green-700"
-            >
-              <i className="fa-solid fa-pen-to-square" /> เข้าส่วน Admin
+            <Link to="/articles" className="text-primary text-sm font-semibold hover:text-green-700">
+              ดูทั้งหมด
             </Link>
           </div>
 
@@ -453,7 +450,7 @@ export default function LandingPage() {
               !articleError &&
               articles
                 .filter((a) => (a.category || 'article') === 'article')
-                .slice(0, 6)
+                .slice(0, 3)
                 .map((article) => (
                   <Link
                     key={article.slug}
@@ -481,7 +478,7 @@ export default function LandingPage() {
 
           {!loadingArticles && !articleError && !articles.length && (
             <div className="p-6 bg-white rounded-xl border text-center text-gray-500 mt-4">
-              ยังไม่มีบทความ ลองเพิ่มผ่านหน้า Admin
+              ยังไม่มีบทความ
             </div>
           )}
         </div>
@@ -498,7 +495,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {articles
               .filter((a) => (a.category || 'article') === 'portfolio')
-              .slice(0, 3)
+              .slice(0, 2)
               .map((item) => (
                 <Link
                   key={item.slug}
@@ -536,7 +533,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {articles
               .filter((a) => (a.category || 'article') === 'review')
-              .slice(0, 3)
+              .slice(0, 2)
               .map((item) => (
                 <div key={item.slug} className="bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition">
                   <div className="flex items-center gap-3 mb-3">
