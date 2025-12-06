@@ -35,6 +35,23 @@ export async function createArticle(
   return data;
 }
 
+export async function updateArticle(
+  id: string,
+  payload: Partial<Omit<Article, 'id'>> & { publishedAt?: string },
+  token: string
+): Promise<Article> {
+  const { data } = await api.put<Article>(`/articles/${id}`, payload, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return data;
+}
+
+export async function deleteArticle(id: string, token: string): Promise<void> {
+  await api.delete(`/articles/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+}
+
 export async function uploadMedia(
   files: {
     main?: File | null;

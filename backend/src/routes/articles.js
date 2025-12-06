@@ -85,4 +85,59 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+router.put('/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { slug, title, summary, body, imageUrl, videoUrl, publishedAt, category = 'article', mainImageUrl, galleryUrls } =
+    req.body || {};
+  if (!slug || !title || !summary || !body) {
+    return res.status(400).json({ message: 'slug, title, summary, and body are required' });
+  }
+  try {
+    await pool.query(
+      `UPDATE articles
+       SET slug=:slug, title=:title, summary=:summary, body=:body, category=:category, main_image_url=:mainImageUrl,
+           gallery_urls=:galleryUrls, image_url=:imageUrl, video_url=:videoUrl, published_at=:publishedAt
+       WHERE id=:id`,
+      {
+        id,
+        slug,
+        title,
+        summary,
+        body,
+        category,
+        mainImageUrl: mainImageUrl || imageUrl || null,
+        galleryUrls: galleryUrls ? JSON.stringify(galleryUrls) : null,
+        imageUrl: imageUrl || null,
+        videoUrl: videoUrl || null,
+        publishedAt: publishedAt ? new Date(publishedAt) : new Date()
+      }
+    );
+    const [rows] = await pool.query(
+      `SELECT id, slug, title, summary, body, category, main_image_url AS mainImageUrl, gallery_urls AS galleryUrls, image_url AS imageUrl, video_url AS videoUrl, published_at AS publishedAt
+       FROM articles WHERE id = :id LIMIT 1`,
+      { id }
+    );
+    if (!rows.length) return res.status(404).json({ message: 'Article not found' });
+    const row = rows[0];
+    return res.json({ ...row, galleryUrls: row.galleryUrls ? JSON.parse(row.galleryUrls) : [] });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'Slug already exists' });
+    }
+    console.error('Error updating article', err);
+    return res.status(500).json({ message: 'Failed to update article' });
+  }
+});
+
+router.delete('/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM articles WHERE id = :id', { id });
+    return res.status(204).send();
+  } catch (err) {
+    console.error('Error deleting article', err);
+    return res.status(500).json({ message: 'Failed to delete article' });
+  }
+});
+
 export default router;
