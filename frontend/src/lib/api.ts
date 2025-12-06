@@ -35,6 +35,29 @@ export async function createArticle(
   return data;
 }
 
+export async function uploadMedia(
+  files: {
+    main?: File | null;
+    video?: File | null;
+    gallery?: File[];
+  },
+  token: string
+): Promise<{
+  main: { url: string; key: string; mime: string; size: number } | null;
+  video: { url: string; key: string; mime: string; size: number } | null;
+  gallery: { url: string; key: string; mime: string; size: number }[];
+}> {
+  const form = new FormData();
+  if (files.main) form.append('main', files.main);
+  if (files.video) form.append('video', files.video);
+  files.gallery?.forEach((f) => form.append('gallery', f));
+
+  const { data } = await api.post('/uploads', form, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return data;
+}
+
 export async function createQueueJob(payload: {
   customer: string;
   quantity: number;

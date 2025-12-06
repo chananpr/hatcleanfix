@@ -451,29 +451,32 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {!loadingArticles &&
               !articleError &&
-              articles.slice(0, 6).map((article) => (
-                <Link
-                  key={article.slug}
-                  to={`/articles/${article.slug}`}
-                  className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-lg transition flex flex-col"
-                >
-                  {article.imageUrl && (
-                    <img
-                      src={article.imageUrl}
-                      alt={article.title}
-                      className="w-full h-44 object-cover rounded-lg mb-4"
-                    />
-                  )}
-                  <span className="text-xs uppercase tracking-wide text-primary font-semibold mb-2">
-                    {new Date(article.publishedAt).toLocaleDateString('th-TH')}
-                  </span>
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">{article.title}</h3>
-                  <p className="text-gray-600 flex-grow">{article.summary}</p>
-                  <span className="mt-4 inline-flex items-center text-sm text-primary font-semibold">
-                    อ่านต่อ <i className="fa-solid fa-arrow-right ml-2" />
-                  </span>
-                </Link>
-              ))}
+              articles
+                .filter((a) => (a.category || 'article') === 'article')
+                .slice(0, 6)
+                .map((article) => (
+                  <Link
+                    key={article.slug}
+                    to={`/articles/${article.slug}`}
+                    className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-lg transition flex flex-col"
+                  >
+                    {(article.mainImageUrl || article.imageUrl) && (
+                      <img
+                        src={article.mainImageUrl || article.imageUrl || ''}
+                        alt={article.title}
+                        className="w-full h-44 object-cover rounded-lg mb-4"
+                      />
+                    )}
+                    <span className="text-xs uppercase tracking-wide text-primary font-semibold mb-2">
+                      {new Date(article.publishedAt).toLocaleDateString('th-TH')}
+                    </span>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">{article.title}</h3>
+                    <p className="text-gray-600 flex-grow">{article.summary}</p>
+                    <span className="mt-4 inline-flex items-center text-sm text-primary font-semibold">
+                      อ่านต่อ <i className="fa-solid fa-arrow-right ml-2" />
+                    </span>
+                  </Link>
+                ))}
           </div>
 
           {!loadingArticles && !articleError && !articles.length && (
@@ -481,6 +484,83 @@ export default function LandingPage() {
               ยังไม่มีบทความ ลองเพิ่มผ่านหน้า Admin
             </div>
           )}
+        </div>
+      </section>
+
+      <section id="portfolio" className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-gray-800">ผลงานของเรา</h2>
+            <Link to="/portfolio" className="text-primary text-sm font-semibold hover:text-green-700">
+              ดูทั้งหมด
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {articles
+              .filter((a) => (a.category || 'article') === 'portfolio')
+              .slice(0, 3)
+              .map((item) => (
+                <Link
+                  key={item.slug}
+                  to={`/articles/${item.slug}`}
+                  className="rounded-xl overflow-hidden border bg-white hover:shadow-lg transition block"
+                >
+                  {(item.mainImageUrl || item.imageUrl) && (
+                    <img
+                      src={item.mainImageUrl || item.imageUrl || ''}
+                      alt={item.title}
+                      className="w-full h-52 object-cover"
+                    />
+                  )}
+                  <div className="p-4">
+                    <p className="text-xs text-primary font-semibold mb-1">
+                      {new Date(item.publishedAt).toLocaleDateString('th-TH')}
+                    </p>
+                    <h3 className="text-lg font-bold text-gray-800">{item.title}</h3>
+                    <p className="text-sm text-gray-600 line-clamp-2">{item.summary}</p>
+                  </div>
+                </Link>
+              ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="reviews" className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-gray-800">รีวิวจากลูกค้า</h2>
+            <Link to="/reviews" className="text-primary text-sm font-semibold hover:text-green-700">
+              ดูทั้งหมด
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {articles
+              .filter((a) => (a.category || 'article') === 'review')
+              .slice(0, 3)
+              .map((item) => (
+                <div key={item.slug} className="bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition">
+                  <div className="flex items-center gap-3 mb-3">
+                    {(item.mainImageUrl || item.imageUrl) && (
+                      <img
+                        src={item.mainImageUrl || item.imageUrl || ''}
+                        alt={item.title}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    )}
+                    <div>
+                      <p className="font-semibold text-gray-800">{item.title}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(item.publishedAt).toLocaleDateString('th-TH')}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 line-clamp-3">{item.summary}</p>
+                  <Link to={`/articles/${item.slug}`} className="text-primary text-sm font-semibold inline-flex items-center mt-3">
+                    อ่านรีวิว <i className="fa-solid fa-arrow-right ml-2" />
+                  </Link>
+                </div>
+              ))}
+          </div>
         </div>
       </section>
 

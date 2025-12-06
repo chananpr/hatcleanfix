@@ -36,6 +36,13 @@ export default function ArticlePage() {
 
         {article && (
           <article className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-10">
+            {(article.mainImageUrl || article.imageUrl) && (
+              <img
+                src={article.mainImageUrl || article.imageUrl || ''}
+                alt={article.title}
+                className="w-full rounded-xl mb-6 object-cover max-h-[420px]"
+              />
+            )}
             <p className="text-sm text-primary font-semibold mb-2">
               {new Date(article.publishedAt).toLocaleDateString('th-TH')}
             </p>
@@ -55,6 +62,17 @@ export default function ArticlePage() {
                 <p key={idx}>{line}</p>
               ))}
             </div>
+
+            {article.galleryUrls?.length ? (
+              <div className="mt-8">
+                <h3 className="text-xl font-bold mb-3">แกลเลอรี่</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {article.galleryUrls.map((url, idx) => (
+                    <img key={idx} src={url} alt={`gallery-${idx}`} className="w-full h-40 object-cover rounded-lg" />
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {article.videoUrl && (
               <div className="mt-8">

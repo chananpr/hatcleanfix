@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Navbar from '../components/Navbar';
 import BackToTop from '../components/BackToTop';
-import { createArticle, login } from '../lib/api';
+import { createArticle, login, uploadMedia } from '../lib/api';
 
 export default function AdminPage() {
   const [isAuthed, setIsAuthed] = useState(false);
@@ -14,10 +14,13 @@ export default function AdminPage() {
   const [summary, setSummary] = useState('');
   const [body, setBody] = useState('');
   const [category, setCategory] = useState<'article' | 'portfolio' | 'review'>('article');
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageUrl, setImageUrl] = useState(''); // fallback manual URL ifต้องการ
   const [mainImageUrl, setMainImageUrl] = useState('');
   const [galleryUrls, setGalleryUrls] = useState<string[]>(['']);
   const [videoUrl, setVideoUrl] = useState('');
+  const [mainFile, setMainFile] = useState<File | null>(null);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [publishedAt, setPublishedAt] = useState('');
   const [token, setToken] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
@@ -73,6 +76,22 @@ export default function AdminPage() {
     try {
       setStatus('saving');
       setMessage('');
+
+      let uploadedMain = mainImageUrl;
+      let uploadedGallery: string[] = galleryUrls.filter((u) => u.trim());
+      let uploadedVideo = videoUrl;
+
+      const hasFiles = mainFile || galleryFiles.length || videoFile;
+      if (hasFiles) {
+        const uploadRes = await uploadMedia(
+          { main: mainFile || undefined, gallery: galleryFiles, video: videoFile || undefined },
+          token
+        );
+        if (uploadRes.main) uploadedMain = uploadRes.main.url;
+        if (uploadRes.gallery?.length) uploadedGallery = uploadRes.gallery.map((g) => g.url);
+        if (uploadRes.video) uploadedVideo = uploadRes.video.url;
+      }
+
       await createArticle(
         {
           slug,
@@ -80,10 +99,10 @@ export default function AdminPage() {
           summary,
           body,
           category,
-          mainImageUrl: mainImageUrl || imageUrl || galleryUrls.find(Boolean) || undefined,
-          galleryUrls: galleryUrls.filter((u) => u.trim()),
-          imageUrl: imageUrl || undefined,
-          videoUrl: videoUrl || undefined,
+          mainImageUrl: uploadedMain || imageUrl || uploadedGallery.find(Boolean) || undefined,
+          galleryUrls: uploadedGallery,
+          imageUrl: uploadedMain || imageUrl || undefined,
+          videoUrl: uploadedVideo || undefined,
           publishedAt: publishedAt || undefined
         },
         token
@@ -99,6 +118,9 @@ export default function AdminPage() {
       setMainImageUrl('');
       setGalleryUrls(['']);
       setVideoUrl('');
+      setMainFile(null);
+      setGalleryFiles([]);
+      setVideoFile(null);
       setPublishedAt('');
     } catch (err) {
       console.error(err);
@@ -227,7 +249,9 @@ export default function AdminPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">รูปหลัก (Main)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">รูปหลัก (อัปโหลดไฟล์)</label>
+              <input type="file" accept="image/*" onChange={(e) => setMainFile(e.target.files?.[0] || null)} />
+              <p className="text-xs text-gray-500 mt-1">หรือใส่ลิงก์ภาพหลัก</p>
               <input
                 className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
                 value={mainImageUrl}
@@ -243,6 +267,8 @@ export default function AdminPage() {
                 onChange={(e) => setVideoUrl(e.target.value)}
                 placeholder="https://youtu.be/..."
               />
+              <p className="text-xs text-gray-500 mt-1">หรืออัปโหลดไฟล์วิดีโอ</p>
+              <input type="file" accept="video/*" onChange={(e) => setVideoFile(e.target.files?.[0] || null)} />
             </div>
           </div>
 
@@ -256,6 +282,15 @@ export default function AdminPage() {
               >
                 + เพิ่มรูป
               </button>
+            </div>
+            <div className="mb-2">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => setGalleryFiles(Array.from(e.target.files || []))}
+              />
+              <p className="text-xs text-gray-500">อัปโหลดหลายไฟล์ได้ หรือกรอกลิงก์ด้านล่างเพิ่มเติม</p>
             </div>
             <div className="space-y-2">
               {galleryUrls.map((url, idx) => (
