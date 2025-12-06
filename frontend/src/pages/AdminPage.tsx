@@ -237,163 +237,172 @@ export default function AdminPage() {
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
-              <input
-                className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="เช่น how-to-clean-vintage-cap"
-              />
-              <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
-                <span>ใช้ a-z, ตัวเลข, ขีดกลาง</span>
-                <button
-                  type="button"
-                  className="text-primary hover:underline"
-                  onClick={() => {
-                    if (title) setSlug(makeSlug(title));
-                  }}
-                >
-                  เติมจากหัวข้อ
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">วันที่เผยแพร่</label>
-              <input
-                type="datetime-local"
-                className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-                value={publishedAt}
-                onChange={(e) => setPublishedAt(e.target.value)}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">หัวข้อ *</label>
-            <input
-              className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="ชื่อบทความ"
-            />
-            <p className="text-xs text-gray-500 mt-1">แนะนำให้มีคีย์เวิร์ดหลักสำหรับ SEO</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">หมวด *</label>
-            <select
-              className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary bg-white"
-              value={category}
-              onChange={(e) => {
-                const val = e.target.value as 'article' | 'portfolio' | 'review';
-                setCategory(val);
-                setActiveTab(val);
-              }}
-            >
-              <option value="article">บทความ</option>
-              <option value="portfolio">ผลงานของเรา</option>
-              <option value="review">รีวิวจากลูกค้า</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">สรุปสั้น ๆ *</label>
-            <textarea
-              className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-              rows={3}
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              placeholder="คำโปรย"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">เนื้อหาเต็ม *</label>
-            <textarea
-              className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-              rows={8}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="เขียนเนื้อหา SEO-friendly (ใช้บรรทัดใหม่คั่นย่อหน้า)"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">รูปหลัก (อัปโหลดไฟล์)</label>
-              <input type="file" accept="image/*" onChange={(e) => setMainFile(e.target.files?.[0] || null)} />
-              <p className="text-xs text-gray-500 mt-1">หรือใส่ลิงก์ภาพหลัก</p>
-              <input
-                className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-                value={mainImageUrl}
-                onChange={(e) => setMainImageUrl(e.target.value)}
-                placeholder="https://... (ภาพหลัก)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ลิงก์วิดีโอ</label>
-              <input
-                className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://youtu.be/..."
-              />
-              <p className="text-xs text-gray-500 mt-1">หรืออัปโหลดไฟล์วิดีโอ</p>
-              <input type="file" accept="video/*" onChange={(e) => setVideoFile(e.target.files?.[0] || null)} />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">แกลเลอรี่รูป (เลือก main ได้จากรายการนี้หรือช่องด้านบน)</label>
-              <button
-                type="button"
-                onClick={() => setGalleryUrls([...galleryUrls, ''])}
-                className="text-sm text-primary hover:underline"
-              >
-                + เพิ่มรูป
-              </button>
-            </div>
-            <div className="mb-2">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => setGalleryFiles(Array.from(e.target.files || []))}
-              />
-              <p className="text-xs text-gray-500">อัปโหลดหลายไฟล์ได้ หรือกรอกลิงก์ด้านล่างเพิ่มเติม</p>
-            </div>
-            <div className="space-y-2">
-              {galleryUrls.map((url, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <input
-                    className="flex-1 rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:border-primary"
-                    value={url}
-                    onChange={(e) => {
-                      const next = [...galleryUrls];
-                      next[idx] = e.target.value;
-                      setGalleryUrls(next);
-                    }}
-                    placeholder={`รูปที่ ${idx + 1} (https://...)`}
-                  />
-                  <label className="flex items-center gap-1 text-sm">
-                    <input
-                      type="radio"
-                      name="mainImage"
-                      checked={(mainImageUrl || '') === url}
-                      onChange={() => setMainImageUrl(url)}
-                    />
-                    main
-                  </label>
+          <form onSubmit={handleSubmit} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
+                <input
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  placeholder="เช่น how-to-clean-vintage-cap"
+                />
+                <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                  <span>ใช้ a-z, ตัวเลข, ขีดกลาง</span>
                   <button
                     type="button"
-                    onClick={() => setGalleryUrls(galleryUrls.filter((_, i) => i !== idx))}
-                    className="text-xs text-red-500 hover:underline"
+                    className="text-primary hover:underline"
+                    onClick={() => {
+                      if (title) setSlug(makeSlug(title));
+                    }}
                   >
-                    ลบ
+                    เติมจากหัวข้อ
                   </button>
                 </div>
-              ))}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">วันที่เผยแพร่</label>
+                <input
+                  type="datetime-local"
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
+                  value={publishedAt}
+                  onChange={(e) => setPublishedAt(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">หัวข้อ *</label>
+                <input
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="ชื่อบทความ"
+                />
+                <p className="text-xs text-gray-500 mt-1">แนะนำให้มีคีย์เวิร์ดหลักสำหรับ SEO</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">หมวด *</label>
+                <select
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary bg-white"
+                  value={category}
+                  onChange={(e) => {
+                    const val = e.target.value as 'article' | 'portfolio' | 'review';
+                    setCategory(val);
+                    setActiveTab(val);
+                  }}
+                >
+                  <option value="article">บทความ</option>
+                  <option value="portfolio">ผลงานของเรา</option>
+                  <option value="review">รีวิวจากลูกค้า</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">สรุปสั้น ๆ *</label>
+                <textarea
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
+                  rows={4}
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  placeholder="คำโปรย"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">เนื้อหาเต็ม *</label>
+                <textarea
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
+                  rows={4}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="เขียนเนื้อหา SEO-friendly (ใช้บรรทัดใหม่คั่นย่อหน้า)"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">รูปหลัก (อัปโหลดไฟล์)</label>
+                <input type="file" accept="image/*" onChange={(e) => setMainFile(e.target.files?.[0] || null)} />
+                <p className="text-xs text-gray-500 mt-1">หรือใส่ลิงก์ภาพหลัก</p>
+                <input
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
+                  value={mainImageUrl}
+                  onChange={(e) => setMainImageUrl(e.target.value)}
+                  placeholder="https://... (ภาพหลัก)"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">วิดีโอ</label>
+                <input
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="https://youtu.be/..."
+                />
+                <p className="text-xs text-gray-500 mt-1">หรืออัปโหลดไฟล์วิดีโอ</p>
+                <input type="file" accept="video/*" onChange={(e) => setVideoFile(e.target.files?.[0] || null)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">แกลเลอรี่รูป (เลือก main ได้จากรายการนี้หรือช่องด้านบน)</label>
+                  <button
+                    type="button"
+                    onClick={() => setGalleryUrls([...galleryUrls, ''])}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    + เพิ่มรูป
+                  </button>
+                </div>
+                <div className="mb-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => setGalleryFiles(Array.from(e.target.files || []))}
+                  />
+                  <p className="text-xs text-gray-500">อัปโหลดหลายไฟล์ได้ หรือกรอกลิงก์ด้านล่างเพิ่มเติม</p>
+                </div>
+                <div className="space-y-2">
+                  {galleryUrls.map((url, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        className="flex-1 rounded-lg border border-gray-200 px-4 py-2 focus:outline-none focus:border-primary"
+                        value={url}
+                        onChange={(e) => {
+                          const next = [...galleryUrls];
+                          next[idx] = e.target.value;
+                          setGalleryUrls(next);
+                        }}
+                        placeholder={`รูปที่ ${idx + 1} (https://...)`}
+                      />
+                      <label className="flex items-center gap-1 text-sm">
+                        <input
+                          type="radio"
+                          name="mainImage"
+                          checked={(mainImageUrl || '') === url}
+                          onChange={() => setMainImageUrl(url)}
+                        />
+                        main
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setGalleryUrls(galleryUrls.filter((_, i) => i !== idx))}
+                        className="text-xs text-red-500 hover:underline"
+                      >
+                        ลบ
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
             <div>
               <p className="text-sm text-gray-600">เข้าสู่ระบบแล้ว</p>
