@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import BackToTop from '../components/BackToTop';
 import { fetchArticle } from '../lib/api';
-import { Article } from '../types';
+import type { Article } from '../types';
 
 export default function ArticlePage() {
   const { slug } = useParams();

@@ -1,4 +1,5 @@
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import Navbar from '../components/Navbar';
 import BackToTop from '../components/BackToTop';
 import { createArticle } from '../lib/api';

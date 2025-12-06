@@ -1,9 +1,10 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import BackToTop from '../components/BackToTop';
 import { fetchArticles, createQueueJob } from '../lib/api';
-import { Article } from '../types';
+import type { Article } from '../types';
 
 const heroBg =
   'https://images.unsplash.com/photo-1575909812264-69c058c42a22?q=80&w=2070&auto=format&fit=crop';
