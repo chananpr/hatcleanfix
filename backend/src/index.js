@@ -38,6 +38,18 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
-});
+async function start() {
+  try {
+    await healthCheck();
+    console.log('✅ Connected to database');
+  } catch (err) {
+    console.error('❌ Database connection failed', err);
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`API server running on http://localhost:${PORT}`);
+  });
+}
+
+start();
