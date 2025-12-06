@@ -57,6 +57,12 @@ API routes:
 - `POST /api/articles` (header `x-admin-secret`)
 - `POST /api/queues`, `GET /api/queues` (admin header)
 
+Create admin user (hashed password):
+```bash
+cd backend
+npm run create-admin -- --email=you@example.com --password=SuperSecret123
+```
+
 3) Frontend (`frontend/`)
 ```bash
 cp .env.example .env              # set VITE_API_URL=http://localhost:5000/api
@@ -69,3 +75,8 @@ Pages:
 - `/articles/:slug` SEO article view
 - `/admin` simple article creator (sends `x-admin-secret`)
 
+Domains / CORS:
+- Set `FRONTEND_ORIGIN` or `CLIENT_ORIGINS` (comma separated) in backend `.env`, e.g.
+  `CLIENT_ORIGINS=https://www.hatfixclean.com,https://admin.hatfixclean.com`
+- Point frontend to API domain via `VITE_API_URL` (e.g. `https://api.hatfixclean.com/api`).
+- For managed MySQL (e.g. DigitalOcean), enable `DB_SSL=true` and set `DB_SSL_REJECT_UNAUTHORIZED=false` (or add CA in `DB_SSL_CA`).
