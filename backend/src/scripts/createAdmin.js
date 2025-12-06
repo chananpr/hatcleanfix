@@ -20,9 +20,12 @@ function parseArgs() {
 }
 
 async function main() {
-  const { email, password, role = 'admin' } = parseArgs();
-  if (!email || !password) {
+  const { email, username, password, role = 'admin' } = parseArgs();
+  const finalEmail = email || username;
+
+  if (!finalEmail || !password) {
     console.error('Usage: npm run create-admin -- --email=someone@example.com --password=Secret123 [--role=admin]');
+    console.error('หรือใช้ --username แทน --email ได้ (จะถูกบันทึกในคอลัมน์ email)');
     process.exit(1);
   }
 
@@ -33,9 +36,9 @@ async function main() {
     await pool.query(
       `INSERT INTO admin_users (id, email, password_hash, role) VALUES (:id, :email, :passwordHash, :role)
        ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), role = VALUES(role)`,
-      { id, email, passwordHash, role }
+      { id, email: finalEmail, passwordHash, role }
     );
-    console.log(`✅ Admin user saved for ${email}`);
+    console.log(`✅ Admin user saved for ${finalEmail}`);
     process.exit(0);
   } catch (err) {
     console.error('❌ Failed to create admin', err);
