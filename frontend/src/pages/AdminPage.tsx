@@ -18,6 +18,7 @@ export default function AdminPage() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
+  const [activeTab, setActiveTab] = useState<'article' | 'portfolio' | 'review'>('article');
   const [slug, setSlug] = useState('');
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
@@ -73,6 +74,23 @@ export default function AdminPage() {
       console.error(err);
       setLoginMessage('เข้าสู่ระบบไม่สำเร็จ ตรวจสอบอีเมล/รหัสผ่าน');
     }
+  };
+
+  const resetForm = () => {
+    setSlug('');
+    setTitle('');
+    setSummary('');
+    setBody('');
+    setCategory(activeTab);
+    setImageUrl('');
+    setMainImageUrl('');
+    setGalleryUrls(['']);
+    setVideoUrl('');
+    setMainFile(null);
+    setGalleryFiles([]);
+    setVideoFile(null);
+    setPublishedAt('');
+    setEditingId(null);
   };
 
   const handleLogout = () => {
@@ -133,20 +151,7 @@ export default function AdminPage() {
         setMessage('บันทึกบทความเรียบร้อย!');
       }
       setStatus('done');
-      setSlug('');
-      setTitle('');
-      setSummary('');
-      setBody('');
-      setCategory('article');
-      setImageUrl('');
-      setMainImageUrl('');
-      setGalleryUrls(['']);
-      setVideoUrl('');
-      setMainFile(null);
-      setGalleryFiles([]);
-      setVideoFile(null);
-      setPublishedAt('');
-      setEditingId(null);
+      resetForm();
     } catch (err) {
       console.error(err);
       setStatus('error');
@@ -210,7 +215,29 @@ export default function AdminPage() {
         )}
 
         {isAuthed && (
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-6">
+        <div className="space-y-6">
+          <div className="flex gap-2">
+            {(['article', 'portfolio', 'review'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={`px-4 py-2 rounded-full border ${
+                  activeTab === tab ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-700'
+                }`}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setCategory(tab);
+                  setFilterCategory(tab);
+                  setEditingId(null);
+                  resetForm();
+                }}
+              >
+                {tab === 'article' ? 'บทความ' : tab === 'portfolio' ? 'ผลงานของเรา' : 'รีวิวจากลูกค้า'}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleSubmit} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
@@ -258,7 +285,11 @@ export default function AdminPage() {
             <select
               className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary bg-white"
               value={category}
-              onChange={(e) => setCategory(e.target.value as any)}
+              onChange={(e) => {
+                const val = e.target.value as 'article' | 'portfolio' | 'review';
+                setCategory(val);
+                setActiveTab(val);
+              }}
             >
               <option value="article">บทความ</option>
               <option value="portfolio">ผลงานของเรา</option>
@@ -378,7 +409,8 @@ export default function AdminPage() {
           {message && (
             <p className={`text-sm ${status === 'error' ? 'text-red-500' : 'text-green-600'}`}>{message}</p>
           )}
-        </form>
+          </form>
+        </div>
         )}
 
         {isAuthed && (
