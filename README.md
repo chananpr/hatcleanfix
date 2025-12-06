@@ -1,37 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hat Fix & Clean
 
-## Getting Started
+Landing site + admin article tool for the hat laundry business. Frontend uses React (Vite + Tailwind). Backend uses Node.js + Express with MySQL (port 5000).
 
-First, run the development server:
+## Quick start
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1) Database (MySQL 8+):
+```sql
+CREATE DATABASE hatfixclean CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE hatfixclean;
+
+CREATE TABLE queues (
+  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  customer TEXT NOT NULL,
+  quantity INT NOT NULL CHECK (quantity > 0),
+  deadline DATE NULL,
+  status VARCHAR(100) NOT NULL,
+  notes TEXT NULL,
+  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id)
+);
+CREATE INDEX queues_created_at_idx ON queues (created_at DESC);
+
+CREATE TABLE articles (
+  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  slug VARCHAR(255) NOT NULL UNIQUE,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  body LONGTEXT NOT NULL,
+  image_url TEXT NULL,
+  video_url TEXT NULL,
+  published_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id)
+);
+CREATE INDEX articles_published_idx ON articles (published_at DESC);
+
+CREATE TABLE admin_users (
+  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  email VARCHAR(255) UNIQUE,
+  password_hash TEXT NOT NULL,
+  role VARCHAR(50) NOT NULL DEFAULT 'admin',
+  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (id)
+);
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2) Backend (`backend/`)
+```bash
+cp .env.example .env              # fill DB + ADMIN_SECRET
+npm install
+npm run dev                       # or npm start
+# server listens on PORT (default 5000)
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+API routes:
+- `GET /api/articles`, `GET /api/articles/:slug`
+- `POST /api/articles` (header `x-admin-secret`)
+- `POST /api/queues`, `GET /api/queues` (admin header)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3) Frontend (`frontend/`)
+```bash
+cp .env.example .env              # set VITE_API_URL=http://localhost:5000/api
+npm install
+npm run dev                       # Vite on http://localhost:5173
+```
 
-## Learn More
+Pages:
+- `/` landing page + article list + quick queue form
+- `/articles/:slug` SEO article view
+- `/admin` simple article creator (sends `x-admin-secret`)
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# hatcleanfix

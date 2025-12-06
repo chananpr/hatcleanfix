@@ -1,14 +1,4 @@
-export type QueueEntry = {
-  id: string;
-  customer: string;
-  quantity: number;
-  deadline?: string | null;
-  status: string;
-  notes?: string | null;
-  createdAt: string;
-};
-
-export type Article = {
+export interface Article {
   id: string;
   slug: string;
   title: string;
@@ -17,9 +7,14 @@ export type Article = {
   imageUrl?: string | null;
   videoUrl?: string | null;
   publishedAt: string;
-};
+}
 
-export type ContentResponse = {
-  queues: QueueEntry[];
-  articles: Article[];
-};
+export interface QueueJob {
+  id: string;
+  customer: string;
+  quantity: number;
+  deadline?: string | null;
+  status: string;
+  notes?: string | null;
+  createdAt: string;
+}

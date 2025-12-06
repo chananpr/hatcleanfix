@@ -1,77 +1,43 @@
-import Fastify from "fastify";
-import cors from "@fastify/cors";
-import dotenv from "dotenv";
-import { createStore } from "./lib/storage/index.js";
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import articlesRouter from './routes/articles.js';
+import queuesRouter from './routes/queues.js';
+import { healthCheck } from './db.js';
 
 dotenv.config();
 
-const {
-  PORT = 4001,
-  ADMIN_KEY = "changeme",
-  CLIENT_ORIGINS = "http://localhost:5173",
-} = process.env;
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-const store = createStore(process.env);
-const fastify = Fastify({ logger: true });
+app.use(
+  cors({
+    origin: process.env.FRONTEND_ORIGIN || '*'
+  })
+);
+app.use(express.json({ limit: '1mb' }));
 
-await fastify.register(cors, {
-  origin: CLIENT_ORIGINS.split(",").map((o) => o.trim()),
-});
-
-fastify.get("/health", async () => ({ status: "ok" }));
-
-fastify.get("/content", async () => {
-  const content = await store.readContent();
-  return content;
-});
-
-fastify.get("/articles/:slug", async (request, reply) => {
-  const { slug } = request.params;
-  const article = await store.getArticleBySlug(slug);
-  if (!article) return reply.code(404).send({ message: "not found" });
-  return article;
-});
-
-function isAuthorized(request) {
-  const header = request.headers["authorization"] || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : header;
-  return token && token === ADMIN_KEY;
-}
-
-fastify.post("/admin/queues", async (request, reply) => {
-  if (!isAuthorized(request)) return reply.code(401).send({ message: "unauthorized" });
-  const { customer, quantity, deadline, status, notes } = request.body || {};
-  if (!customer || !quantity || !status) {
-    return reply.code(400).send({ message: "customer, quantity, and status are required" });
+app.get('/api/health', async (req, res) => {
+  try {
+    await healthCheck();
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false });
   }
-  const parsedQuantity = Number(quantity);
-  if (Number.isNaN(parsedQuantity) || parsedQuantity <= 0) {
-    return reply.code(400).send({ message: "quantity must be a positive number" });
-  }
-  const queue = await store.addQueue({ customer, quantity: parsedQuantity, deadline, status, notes });
-  return { queue };
 });
 
-fastify.post("/admin/articles", async (request, reply) => {
-  if (!isAuthorized(request)) return reply.code(401).send({ message: "unauthorized" });
-  const { title, summary, body, imageUrl, videoUrl } = request.body || {};
-  if (!title || !summary || !body) {
-    return reply.code(400).send({ message: "title, summary, and body are required" });
-  }
-  const article = await store.addArticle({ title, summary, body, imageUrl, videoUrl });
-  return { article };
+app.use('/api/articles', articlesRouter);
+app.use('/api/queues', queuesRouter);
+
+app.use((req, res) => {
+  res.status(404).json({ message: 'Not found' });
 });
 
-fastify.setNotFoundHandler((_, reply) => reply.code(404).send({ message: "not found" }));
-
-fastify.setErrorHandler((error, request, reply) => {
-  request.log.error(error);
-  reply.code(500).send({ message: "internal error" });
+app.use((err, req, res, next) => {
+  console.error('Unhandled error', err);
+  res.status(500).json({ message: 'Internal server error' });
 });
 
-fastify.listen({ port: Number(PORT), host: "0.0.0.0" })
-  .then((address) => fastify.log.info(`API running at ${address}`))
-  .catch((err) => {
-    fastify.log.error(err);
-    process.exit(1);
-  });
+app.listen(PORT, () => {
+  console.log(`API server running on http://localhost:${PORT}`);
+});
