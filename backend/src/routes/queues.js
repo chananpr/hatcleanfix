@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { randomUUID } from 'crypto';
 import { pool } from '../db.js';
-import { requireAdmin } from '../middleware/adminAuth.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', requireAdmin, async (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT id, customer, quantity, deadline, status, notes, created_at AS createdAt

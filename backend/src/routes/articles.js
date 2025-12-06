@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { randomUUID } from 'crypto';
 import { pool } from '../db.js';
-import { requireAdmin } from '../middleware/adminAuth.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -35,7 +35,7 @@ router.get('/:slug', async (req, res) => {
   }
 });
 
-router.post('/', requireAdmin, async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   const { slug, title, summary, body, imageUrl, videoUrl, publishedAt } = req.body || {};
 
   if (!slug || !title || !summary || !body) {

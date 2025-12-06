@@ -7,6 +7,14 @@ const api = axios.create({
   baseURL: apiBase
 });
 
+export async function login(
+  identifier: string,
+  password: string
+): Promise<{ token: string; email: string; role: string }> {
+  const { data } = await api.post('/auth/login', { identifier, password });
+  return data;
+}
+
 export async function fetchArticles(): Promise<Article[]> {
   const { data } = await api.get<Article[]>('/articles');
   return data;
@@ -19,10 +27,10 @@ export async function fetchArticle(slug: string): Promise<Article> {
 
 export async function createArticle(
   payload: Omit<Article, 'id' | 'publishedAt'> & { publishedAt?: string },
-  adminSecret: string
+  token: string
 ): Promise<Article> {
   const { data } = await api.post<Article>('/articles', payload, {
-    headers: { 'x-admin-secret': adminSecret }
+    headers: { Authorization: `Bearer ${token}` }
   });
   return data;
 }

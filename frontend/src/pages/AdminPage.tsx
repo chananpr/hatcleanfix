@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Navbar from '../components/Navbar';
 import BackToTop from '../components/BackToTop';
-import { createArticle } from '../lib/api';
+import { createArticle, login } from '../lib/api';
 
 export default function AdminPage() {
   const [isAuthed, setIsAuthed] = useState(false);
-  const [loginSecret, setLoginSecret] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
 
   const [slug, setSlug] = useState('');
   const [title, setTitle] = useState('');
@@ -15,32 +16,48 @@ export default function AdminPage() {
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [publishedAt, setPublishedAt] = useState('');
-  const [adminSecret, setAdminSecret] = useState('');
+  const [token, setToken] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const [loginMessage, setLoginMessage] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem('hatfix_admin_secret');
-    if (saved) {
-      setLoginSecret(saved);
-      setAdminSecret(saved);
+    const savedToken = localStorage.getItem('hatfix_admin_token');
+    const savedEmail = localStorage.getItem('hatfix_admin_email');
+    if (savedToken) {
+      setToken(savedToken);
       setIsAuthed(true);
     }
+    if (savedEmail) setLoginEmail(savedEmail);
   }, []);
 
-  const handleLogin = (e: FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    if (!loginSecret.trim()) return;
-    localStorage.setItem('hatfix_admin_secret', loginSecret.trim());
-    setAdminSecret(loginSecret.trim());
-    setIsAuthed(true);
+    if (!loginEmail || !loginPassword) {
+      setLoginMessage('กรอกอีเมลหรือชื่อผู้ใช้และรหัสผ่าน');
+      return;
+    }
+    try {
+      const { token: tkn, email } = await login(loginEmail, loginPassword);
+      localStorage.setItem('hatfix_admin_token', tkn);
+      localStorage.setItem('hatfix_admin_email', email);
+      setToken(tkn);
+      setIsAuthed(true);
+      setLoginMessage('');
+      setLoginPassword('');
+    } catch (err) {
+      console.error(err);
+      setLoginMessage('เข้าสู่ระบบไม่สำเร็จ ตรวจสอบอีเมล/รหัสผ่าน');
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('hatfix_admin_secret');
+    localStorage.removeItem('hatfix_admin_token');
+    localStorage.removeItem('hatfix_admin_email');
     setIsAuthed(false);
-    setLoginSecret('');
-    setAdminSecret('');
+    setLoginEmail('');
+    setLoginPassword('');
+    setToken('');
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -63,7 +80,7 @@ export default function AdminPage() {
           videoUrl: videoUrl || undefined,
           publishedAt: publishedAt || undefined
         },
-        adminSecret
+        token
       );
       setStatus('done');
       setMessage('บันทึกบทความเรียบร้อย!');
@@ -108,15 +125,25 @@ export default function AdminPage() {
             className="bg-white border border-gray-100 shadow-sm rounded-2xl p-6 space-y-4 max-w-xl"
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Admin Secret</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">อีเมลหรือชื่อผู้ใช้</label>
               <input
                 className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-                value={loginSecret}
-                onChange={(e) => setLoginSecret(e.target.value)}
-                placeholder="ใส่รหัส secret ที่ backend"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="admin@example.com"
               />
-              <p className="text-xs text-gray-500 mt-2">รหัสนี้ถูกเก็บใน browser (localStorage) เท่านั้น</p>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+              <input
+                type="password"
+                className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="********"
+              />
+            </div>
+            {loginMessage && <p className="text-sm text-red-500">{loginMessage}</p>}
             <button
               type="submit"
               className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:bg-green-700 transition"
@@ -199,16 +226,7 @@ export default function AdminPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Admin Secret (จาก .env backend)</label>
-              <input
-                className="w-full rounded-lg border border-gray-200 px-4 py-3 focus:outline-none focus:border-primary"
-                value={adminSecret}
-                onChange={(e) => {
-                  setAdminSecret(e.target.value);
-                  localStorage.setItem('hatfix_admin_secret', e.target.value);
-                }}
-                placeholder="x-admin-secret"
-              />
+              <p className="text-sm text-gray-600">เข้าสู่ระบบแล้ว</p>
             </div>
             <button
               type="submit"

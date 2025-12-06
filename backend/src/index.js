@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import articlesRouter from './routes/articles.js';
 import queuesRouter from './routes/queues.js';
+import authRouter from './routes/auth.js';
 import { healthCheck } from './db.js';
 
 dotenv.config();
@@ -36,6 +37,7 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+app.use('/api/auth', authRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/api/queues', queuesRouter);
 
