@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@200;400;600;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-red: #ff0000;
+  --brand-yellow: #ffcc00;
+  --brand-black: #1a1a1a;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-white font-kanit text-brand-black antialiased;
+}
+
+@layer components {
+  .container-shell {
+    @apply mx-auto w-full max-w-7xl px-6;
+  }
+
+  .nav-link {
+    @apply border-b-2 border-transparent py-2 text-xs font-bold uppercase tracking-[0.2em] text-brand-black transition hover:text-brand-red;
+  }
+
+  .nav-link-active {
+    @apply border-brand-red text-brand-red;
+  }
+
+  .section-divider::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 4px;
+    background: var(--brand-red);
+    margin: 1rem auto 0;
+  }
+}
+
+@layer utilities {
+  .btn-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .img-zoom img {
+    transition: transform 0.5s ease;
+  }
+
+  .img-zoom:hover img {
+    transform: scale(1.08);
+  }
+}
