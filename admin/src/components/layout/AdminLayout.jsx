@@ -2,16 +2,20 @@ import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import useAuth from '../../hooks/useAuth.js'
 import StatusBadge from '../common/StatusBadge.jsx'
+import {
+  DashboardIcon, LeadsIcon, OrdersIcon, CustomersIcon,
+  UsersIcon, PricingIcon, MarketingIcon, ContentIcon, LogoutIcon
+} from '../icons/index.js'
 
 const NAV_ITEMS = [
-  { path: '/dashboard', icon: '📊', label: 'แดชบอร์ด', roles: null },
-  { path: '/leads', icon: '📋', label: 'ลีด', roles: ['superadmin', 'admin', 'staff'] },
-  { path: '/orders', icon: '📦', label: 'ออเดอร์', roles: null },
-  { path: '/customers', icon: '👥', label: 'ลูกค้า', roles: null },
-  { path: '/users', icon: '👤', label: 'ผู้ใช้งาน', roles: ['superadmin', 'admin'] },
-  { path: '/pricing', icon: '💰', label: 'ราคา', roles: ['superadmin', 'admin'] },
-  { path: '/attribution', icon: '📈', label: 'การตลาด', roles: ['superadmin', 'admin'] },
-  { path: '/content', icon: '🖼️', label: 'คอนเทนต์', roles: ['superadmin', 'admin'] },
+  { path: '/dashboard', icon: DashboardIcon, label: 'แดชบอร์ด', roles: null },
+  { path: '/leads', icon: LeadsIcon, label: 'ลีด', roles: ['superadmin', 'admin', 'staff'] },
+  { path: '/orders', icon: OrdersIcon, label: 'ออเดอร์', roles: null },
+  { path: '/customers', icon: CustomersIcon, label: 'ลูกค้า', roles: null },
+  { path: '/users', icon: UsersIcon, label: 'ผู้ใช้งาน', roles: ['superadmin', 'admin'] },
+  { path: '/pricing', icon: PricingIcon, label: 'ราคา', roles: ['superadmin', 'admin'] },
+  { path: '/attribution', icon: MarketingIcon, label: 'การตลาด', roles: ['superadmin', 'admin'] },
+  { path: '/content', icon: ContentIcon, label: 'คอนเทนต์', roles: ['superadmin', 'admin'] },
 ]
 
 export default function AdminLayout() {
@@ -55,7 +59,7 @@ export default function AdminLayout() {
                 }`
               }
             >
-              <span className="text-base">{item.icon}</span>
+              <item.icon />
               <span>{item.label}</span>
             </NavLink>
           ))}
@@ -79,7 +83,7 @@ export default function AdminLayout() {
           onClick={handleLogout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-white/60 hover:bg-white/10 hover:text-white text-sm transition-all"
         >
-          <span>🚪</span>
+          <LogoutIcon />
           <span>ออกจากระบบ</span>
         </button>
       </div>
