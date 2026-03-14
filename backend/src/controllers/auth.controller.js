@@ -40,7 +40,7 @@ const me = async (req, res) => {
       attributes: { exclude: ['password'] },
       include: [{ model: Role, as: 'role' }]
     })
-    res.json({ user })
+    res.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role?.name || null, role_id: user.role_id, is_active: user.is_active, last_login: user.last_login } })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }

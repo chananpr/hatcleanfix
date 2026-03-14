@@ -8,7 +8,8 @@ const list = async (req, res) => {
       include: [{ model: Role, as: 'role' }],
       order: [['createdAt', 'DESC']]
     })
-    res.json({ data: users })
+    const data = users.map(u => ({ ...u.toJSON(), role: u.role?.name || null }))
+    res.json({ data })
   } catch (err) {
     res.status(500).json({ message: err.message })
   }

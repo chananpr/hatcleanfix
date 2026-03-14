@@ -217,6 +217,7 @@ Customer.hasMany(CustomerAddress, { foreignKey: 'customer_id' })
 
 Customer.hasMany(Order,           { foreignKey: 'customer_id' })
 Order.belongsTo(Customer,         { foreignKey: 'customer_id' })
+Lead.belongsTo(User,              { foreignKey: 'assigned_to', as: 'assignee' })
 Order.belongsTo(User,             { foreignKey: 'assigned_to', as: 'assignee' })
 Order.hasMany(OrderItem,          { foreignKey: 'order_id' })
 Order.hasMany(OrderStatusLog,     { foreignKey: 'order_id' })

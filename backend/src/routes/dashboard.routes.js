@@ -6,6 +6,7 @@ router.use(authMiddleware)
 
 router.get('/summary',      ctrl.summary)       // KPI overview
 router.get('/orders',       ctrl.orderStats)    // order by status
+router.get('/order-stats',  ctrl.orderStats)    // alias for frontend
 router.get('/revenue',      ctrl.revenue)       // revenue by period
 router.get('/attribution',  ctrl.attribution)   // leads/orders by campaign
 
