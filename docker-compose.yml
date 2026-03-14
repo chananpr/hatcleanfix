@@ -37,16 +37,12 @@ services:
       - "5678:5678"
     environment:
       - N8N_ENCRYPTION_KEY=changeme32charslongencryptionkey
-      - DB_TYPE=mysqldb
-      - DB_MYSQLDB_HOST=mysql
-      - DB_MYSQLDB_PORT=3306
-      - DB_MYSQLDB_DATABASE=n8n
-      - DB_MYSQLDB_USER=hatfixclean
-      - DB_MYSQLDB_PASSWORD=hatfixclean
+      - DB_TYPE=sqlite
+      - N8N_HOST=automation.hatfixclean.com
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://automation.hatfixclean.com
     volumes:
       - n8n_data:/home/node/.n8n
-    depends_on:
-      - mysql
     networks:
       - hatfixclean
 
