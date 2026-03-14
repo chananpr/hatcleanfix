@@ -1,0 +1,35 @@
+{
+  "name": "Order Status Notification",
+  "description": "เมื่อ order status เปลี่ยน → ส่งแจ้งเตือนให้ลูกค้าผ่าน Messenger",
+  "trigger": "webhook from API on status change",
+  "nodes": [
+    {
+      "id": "webhook",
+      "name": "Receive Status Change",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": { "path": "order-status", "method": "POST" }
+    },
+    {
+      "id": "build_message",
+      "name": "Build Thai Message",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "code": "const { status, order_number, tracking_number, customer_psid } = $input.item.json;\nconst messages = {\n  received:          `รับหมวกของคุณแล้วครับ (Order: ${order_number}) 📦`,\n  in_progress:       `เริ่มดำเนินการแล้วครับ กำลังจัดทรง/ซัก 🧢`,\n  completed:         `งานเสร็จแล้วครับ! รอยืนยันชำระเงินนะครับ ✅`,\n  shipped:           `ส่งหมวกกลับแล้วครับ เลขพัสดุ: ${tracking_number} 🚚`,\n};\nreturn [{ json: { psid: customer_psid, message: messages[status] || `อัปเดตสถานะ: ${status}` } }];"
+      }
+    },
+    {
+      "id": "send_messenger",
+      "name": "Send to Messenger",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "url": "https://graph.facebook.com/v19.0/me/messages",
+        "method": "POST",
+        "headers": { "Authorization": "Bearer {{ $env.FB_PAGE_ACCESS_TOKEN }}" },
+        "body": {
+          "recipient": { "id": "={{ $json.psid }}" },
+          "message":   { "text": "={{ $json.message }}" }
+        }
+      }
+    }
+  ]
+}

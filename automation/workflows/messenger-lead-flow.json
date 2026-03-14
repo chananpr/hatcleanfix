@@ -1,0 +1,59 @@
+{
+  "name": "Messenger Lead Flow",
+  "description": "รับ Messenger webhook → AI extract → save lead + attribution → notify admin",
+  "nodes": [
+    {
+      "id": "webhook",
+      "type": "n8n-nodes-base.webhook",
+      "name": "Receive Messenger Event",
+      "parameters": {
+        "path": "messenger",
+        "method": "POST"
+      }
+    },
+    {
+      "id": "extract_ad_source",
+      "type": "n8n-nodes-base.code",
+      "name": "Extract Ad Source",
+      "description": "Parse ref param for campaign/ad attribution",
+      "parameters": {
+        "code": "// Parse Facebook ref param for ad attribution\nconst body = $input.item.json;\nconst messaging = body?.entry?.[0]?.messaging?.[0];\nconst psid = messaging?.sender?.id;\nconst ref = messaging?.referral?.ref || '';\n\n// ref format: 'camp_{campaign_id}_set_{adset_id}_ad_{ad_id}'\nconst parsed = {};\nif (ref) {\n  parsed.campaign_id = ref.match(/camp_([^_]+)/)?.[1];\n  parsed.adset_id    = ref.match(/set_([^_]+)/)?.[1];\n  parsed.ad_id       = ref.match(/ad_([^_]+)/)?.[1];\n}\n\nreturn [{ json: { psid, ref, ...parsed, raw: messaging } }];"
+      }
+    },
+    {
+      "id": "ai_extract",
+      "type": "n8n-nodes-base.openAi",
+      "name": "AI Extract Customer Info",
+      "description": "Extract hat_count, province, needs_washing from message",
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "prompt": "Extract from this Thai message: hat count, province, needs washing (yes/no). Return JSON only."
+      }
+    },
+    {
+      "id": "save_lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Save Lead to API",
+      "parameters": {
+        "url": "={{ $env.HATFIXCLEAN_API_URL }}/api/webhooks/n8n",
+        "method": "POST",
+        "body": {
+          "type": "new_lead",
+          "data": "={{ $json }}"
+        }
+      }
+    },
+    {
+      "id": "notify_admin",
+      "type": "n8n-nodes-base.telegram",
+      "name": "Notify Admin",
+      "description": "ส่งแจ้งเตือนแอดมิน"
+    }
+  ],
+  "connections": {
+    "webhook":           { "main": [["extract_ad_source"]] },
+    "extract_ad_source": { "main": [["ai_extract"]] },
+    "ai_extract":        { "main": [["save_lead"]] },
+    "save_lead":         { "main": [["notify_admin"]] }
+  }
+}

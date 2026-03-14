@@ -1,0 +1,59 @@
+version: '3.8'
+
+# Root docker-compose สำหรับ dev environment
+# n8n ใช้ n8n Cloud แทน (ไม่ต้อง self-host)
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: hatfixclean-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: hatfixclean
+      MYSQL_USER: hatfixclean
+      MYSQL_PASSWORD: hatfixclean
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - hatfixclean
+
+  redis:
+    image: redis:7-alpine
+    container_name: hatfixclean-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - hatfixclean
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: hatfixclean-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_ENCRYPTION_KEY=changeme32charslongencryptionkey
+      - DB_TYPE=mysqldb
+      - DB_MYSQLDB_HOST=mysql
+      - DB_MYSQLDB_PORT=3306
+      - DB_MYSQLDB_DATABASE=n8n
+      - DB_MYSQLDB_USER=hatfixclean
+      - DB_MYSQLDB_PASSWORD=hatfixclean
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - mysql
+    networks:
+      - hatfixclean
+
+volumes:
+  mysql_data:
+  n8n_data:
+
+networks:
+  hatfixclean:
+    driver: bridge
