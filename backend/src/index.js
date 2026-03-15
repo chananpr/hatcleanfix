@@ -10,8 +10,8 @@ app.use(cors({
   origin: [process.env.ADMIN_URL, process.env.PUBLIC_URL],
   credentials: true
 }))
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
 // Health check
 app.get('/health', (req, res) => {
@@ -43,6 +43,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' })
 })
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`HATZ API running on port ${PORT}`)
 })
+server.timeout = 300000         // 5 min
+server.keepAliveTimeout = 120000 // 2 min
+server.headersTimeout = 310000   // slightly above timeout

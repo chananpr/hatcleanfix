@@ -1,6 +1,11 @@
 {
   "name": "Messenger Lead Flow",
-  "description": "รับ Messenger webhook → AI extract → save lead + attribution → notify admin",
+  "description": "รับ Messenger webhook → AI ตอบอัตโนมัติ + สกัดข้อมูลลูกค้า → บันทึกลง database",
+  "notes": "Flow นี้เป็น backup/reference เท่านั้น — ตอนนี้ backend จัดการ AI reply + save โดยตรงแล้ว ไม่ต้อง import เข้า n8n ก็ได้",
+  "architecture": {
+    "primary_flow": "Facebook Messenger → Backend (POST /api/webhooks/messenger) → OpenAI → Reply + Save Customer/Lead",
+    "n8n_role": "ใช้สำหรับ order status notification (แจ้งลูกค้าเมื่อสถานะเปลี่ยน) และ automation อื่นๆ ในอนาคต"
+  },
   "nodes": [
     {
       "id": "webhook",
@@ -12,48 +17,27 @@
       }
     },
     {
-      "id": "extract_ad_source",
+      "id": "extract_event",
       "type": "n8n-nodes-base.code",
-      "name": "Extract Ad Source",
-      "description": "Parse ref param for campaign/ad attribution",
+      "name": "Extract Event Data",
       "parameters": {
-        "code": "// Parse Facebook ref param for ad attribution\nconst body = $input.item.json;\nconst messaging = body?.entry?.[0]?.messaging?.[0];\nconst psid = messaging?.sender?.id;\nconst ref = messaging?.referral?.ref || '';\n\n// ref format: 'camp_{campaign_id}_set_{adset_id}_ad_{ad_id}'\nconst parsed = {};\nif (ref) {\n  parsed.campaign_id = ref.match(/camp_([^_]+)/)?.[1];\n  parsed.adset_id    = ref.match(/set_([^_]+)/)?.[1];\n  parsed.ad_id       = ref.match(/ad_([^_]+)/)?.[1];\n}\n\nreturn [{ json: { psid, ref, ...parsed, raw: messaging } }];"
+        "code": "const body = $input.item.json;\nconst messaging = body?.entry?.[0]?.messaging?.[0];\nconst psid = messaging?.sender?.id;\nconst text = messaging?.message?.text || '';\nconst ref = messaging?.referral?.ref || '';\n\nreturn [{ json: { psid, text, ref, raw: messaging } }];"
       }
     },
     {
-      "id": "ai_extract",
-      "type": "n8n-nodes-base.openAi",
-      "name": "AI Extract Customer Info",
-      "description": "Extract hat_count, province, needs_washing from message",
-      "parameters": {
-        "model": "gpt-4o-mini",
-        "prompt": "Extract from this Thai message: hat count, province, needs washing (yes/no). Return JSON only."
-      }
-    },
-    {
-      "id": "save_lead",
+      "id": "forward_to_backend",
       "type": "n8n-nodes-base.httpRequest",
-      "name": "Save Lead to API",
+      "name": "Forward to Backend API",
+      "description": "ส่งให้ backend จัดการ AI reply + save ทั้งหมด",
       "parameters": {
-        "url": "={{ $env.HATFIXCLEAN_API_URL }}/api/webhooks/n8n",
+        "url": "={{ $env.HATFIXCLEAN_API_URL }}/api/webhooks/messenger",
         "method": "POST",
-        "body": {
-          "type": "new_lead",
-          "data": "={{ $json }}"
-        }
+        "body": "={{ $input.item.json.raw }}"
       }
-    },
-    {
-      "id": "notify_admin",
-      "type": "n8n-nodes-base.telegram",
-      "name": "Notify Admin",
-      "description": "ส่งแจ้งเตือนแอดมิน"
     }
   ],
   "connections": {
-    "webhook":           { "main": [["extract_ad_source"]] },
-    "extract_ad_source": { "main": [["ai_extract"]] },
-    "ai_extract":        { "main": [["save_lead"]] },
-    "save_lead":         { "main": [["notify_admin"]] }
+    "webhook": { "main": [["extract_event"]] },
+    "extract_event": { "main": [["forward_to_backend"]] }
   }
 }

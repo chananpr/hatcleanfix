@@ -9,7 +9,9 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
-    pool: { max: 10, min: 0, acquire: 30000, idle: 10000 }
+    pool: { max: 20, min: 2, acquire: 60000, idle: 30000 },
+    dialectOptions: { connectTimeout: 60000 },
+    retry: { max: 3 }
   }
 )
 
