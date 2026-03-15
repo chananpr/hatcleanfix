@@ -5,6 +5,7 @@ import BusinessPage from '../pages/BusinessPage'
 import GalleryPage from '../pages/GalleryPage'
 import HomePage from '../pages/HomePage'
 import ServicesPage from '../pages/ServicesPage'
+import PrivacyPolicyPage from '../pages/PrivacyPolicyPage'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -26,6 +27,7 @@ export default function AppRouter() {
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/business" element={<BusinessPage />} />
           <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
