@@ -1,6 +1,7 @@
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const logger = require('./utils/logger')
 
 const app = express()
 const PORT = process.env.PORT || 4000
@@ -18,34 +19,38 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'hatfixclean-api', timestamp: new Date() })
 })
 
-// Routes
-app.use('/api/auth',        require('./routes/auth.routes'))
-app.use('/api/users',       require('./routes/user.routes'))
-app.use('/api/customers',   require('./routes/customer.routes'))
-app.use('/api/leads',       require('./routes/lead.routes'))
-app.use('/api/orders',      require('./routes/order.routes'))
-app.use('/api/shipments',   require('./routes/shipment.routes'))
-app.use('/api/payments',    require('./routes/payment.routes'))
-app.use('/api/webhooks',    require('./routes/webhook.routes'))
-app.use('/api/dashboard',   require('./routes/dashboard.routes'))
-app.use('/api/content',     require('./routes/content.routes'))
-app.use('/api/pricing',     require('./routes/pricing.routes'))
-app.use('/api/reports',     require('./routes/report.routes'))
+// ====== Module Routes ======
+app.use('/api/auth',        require('./modules/auth/auth.routes'))
+app.use('/api/users',       require('./modules/users/user.routes'))
+app.use('/api/customers',   require('./modules/customers/customer.routes'))
+app.use('/api/leads',       require('./modules/leads/lead.routes'))
+app.use('/api/orders',      require('./modules/orders/order.routes'))
+app.use('/api/shipments',   require('./modules/shipments/shipment.routes'))
+app.use('/api/payments',    require('./modules/payments/payment.routes'))
+app.use('/api/webhooks',    require('./modules/webhooks/webhook.routes'))
+app.use('/api/dashboard',   require('./modules/dashboard/dashboard.routes'))
+app.use('/api/content',     require('./modules/content/content.routes'))
+app.use('/api/pricing',     require('./modules/pricing/pricing.routes'))
+app.use('/api/reports',     require('./modules/reports/report.routes'))
 
 // 404
 app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' })
+  res.status(404).json({ success: false, message: 'Route not found' })
 })
 
-// Error handler
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack)
-  res.status(500).json({ message: 'Internal server error' })
+  logger.error(err.stack)
+  const statusCode = err.statusCode || 500
+  res.status(statusCode).json({
+    success: false,
+    message: err.isOperational ? err.message : 'Internal server error'
+  })
 })
 
 const server = app.listen(PORT, () => {
-  console.log(`HATZ API running on port ${PORT}`)
+  logger.info(`HATZ API running on port ${PORT}`)
 })
-server.timeout = 300000         // 5 min
-server.keepAliveTimeout = 120000 // 2 min
-server.headersTimeout = 310000   // slightly above timeout
+server.timeout = 300000
+server.keepAliveTimeout = 120000
+server.headersTimeout = 310000
