@@ -14,33 +14,75 @@ Most developers add "AI" to their resume after calling one API endpoint. This pl
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph CDN["☁️ Cloudflare DNS / CDN / SSL"]
+    end
+
+    subgraph Clients["Client Layer"]
+        FE["🌐 Frontend<br/>React 19 · Vite<br/>Public Storefront"]
+        ADMIN["🔧 Admin Panel<br/>React 19 · Vite<br/>4-Role RBAC Dashboard"]
+        N8N["⚡ Automation<br/>n8n · Self-hosted<br/>Messenger Bot · Workflows"]
+    end
+
+    subgraph API["🖥️ Express.js REST API — JWT Auth · 15 Modules · 23 Models"]
+        AUTH["🔐 Auth<br/>JWT · RBAC"]
+        ORDERS["📦 Orders<br/>15-Step Lifecycle"]
+        PAY["💳 Payments<br/>Xendit QR Webhook"]
+        SHIP["🚚 Shipments<br/>iShip API"]
+        CRM["👥 CRM<br/>Customers · Leads"]
+        DASH["📊 Dashboard<br/>Reports · Analytics"]
+    end
+
+    subgraph AI["🤖 AI Integration Layer"]
+        CLAUDE["Claude API<br/>SSE Streaming<br/>Admin Chat"]
+        GPT["OpenAI GPT-4o<br/>Messenger Bot<br/>Auto-Reply"]
+        LINKEDIN["Claude AI<br/>LinkedIn Engine<br/>Content Generation"]
+        ATTR["Ad Attribution<br/>Facebook → Revenue<br/>Campaign ROI"]
+    end
+
+    subgraph Data["☁️ AWS Cloud"]
+        RDS[("🗄️ AWS RDS<br/>MySQL 8.0")]
+        S3["📁 AWS S3<br/>Media Storage"]
+        REDIS["⚡ Redis 7<br/>Cache · Sessions"]
+    end
+
+    CDN --> FE & ADMIN & N8N
+    FE & ADMIN & N8N --> API
+    API --> AI
+    API --> RDS & S3 & REDIS
+    AI --> RDS
+
+    style CDN fill:#f59e0b,stroke:#d97706,color:#000
+    style AI fill:#8b5cf6,stroke:#7c3aed,color:#fff
+    style Data fill:#10b981,stroke:#059669,color:#fff
+    style CLAUDE fill:#d946ef,stroke:#c026d3,color:#fff
+    style GPT fill:#06b6d4,stroke:#0891b2,color:#fff
+    style LINKEDIN fill:#3b82f6,stroke:#2563eb,color:#fff
+    style ATTR fill:#f97316,stroke:#ea580c,color:#fff
 ```
-                         ┌──────────────────────────────┐
-                         │       Cloudflare DNS/CDN      │
-                         └─────┬────────┬────────┬──────┘
-                               │        │        │
-                  ┌────────────▼─┐ ┌────▼─────┐ ┌▼──────────────┐
-                  │   Frontend   │ │  Admin   │ │  Automation   │
-                  │   React 19   │ │ React 19 │ │  n8n + AI     │
-                  │   Storefront │ │ 4-Role   │ │  Messenger    │
-                  │              │ │ RBAC     │ │  Bot          │
-                  └──────┬───────┘ └────┬─────┘ └──────┬────────┘
-                         │             │               │
-                  ┌──────▼─────────────▼───────────────▼────────┐
-                  │            Express.js REST API               │
-                  │   JWT Auth · 15 Modules · 23 Models · RBAC  │
-                  │                                              │
-                  │  ┌─────────────────────────────────────┐    │
-                  │  │         AI Integration Layer         │    │
-                  │  │  Claude SSE · GPT-4o · n8n Agents   │    │
-                  │  │  LinkedIn AI · Messenger Bot         │    │
-                  │  └─────────────────────────────────────┘    │
-                  └──┬──────────┬──────────┬────────────────────┘
-                     │          │          │
-               ┌─────▼──┐ ┌────▼───┐ ┌────▼───────────┐
-               │AWS RDS │ │ Redis  │ │   AWS S3       │
-               │MySQL 8 │ │ Cache  │ │ Media Storage  │
-               └────────┘ └────────┘ └────────────────┘
+
+### AI Data Flow
+
+```mermaid
+flowchart LR
+    A["👤 Customer<br/>Messenger"] -->|message| B["📨 Facebook<br/>Webhook"]
+    B --> C["⚡ n8n<br/>Workflow"]
+    C --> D["🤖 OpenAI<br/>GPT-4o"]
+    D -->|auto-reply| A
+    C -->|extract data| E[("🗄️ CRM<br/>Database")]
+    C -->|track| F["📊 Ad Attribution<br/>Campaign → ROI"]
+
+    G["👨‍💻 Admin"] -->|chat| H["🤖 Claude<br/>SSE Stream"]
+    H -->|response| G
+
+    G -->|generate| I["✍️ LinkedIn<br/>AI Engine"]
+    I -->|draft| G
+    G -->|copy & post| J["🔗 LinkedIn"]
+
+    style D fill:#06b6d4,stroke:#0891b2,color:#fff
+    style H fill:#d946ef,stroke:#c026d3,color:#fff
+    style I fill:#3b82f6,stroke:#2563eb,color:#fff
 ```
 
 ---
