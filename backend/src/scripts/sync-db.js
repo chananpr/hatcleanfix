@@ -27,15 +27,15 @@ async function syncDatabase() {
     // Seed Superadmin user (ถ้ายังไม่มี)
     const existing = await User.findOne({ where: { email: 'admin@hatfixclean.com' } })
     if (!existing) {
-      const password = await bcrypt.hash('Admin@1234', 10)
+      const defaultPass = process.env.ADMIN_DEFAULT_PASSWORD || 'ChangeMe@FirstLogin'
+      const password = await bcrypt.hash(defaultPass, 10)
       await User.create({
         name: 'Super Admin',
-        email: 'admin@hatfixclean.com',
+        email: process.env.ADMIN_EMAIL || 'admin@hatfixclean.com',
         password,
         role_id: 1
       })
-      console.log('Superadmin created: admin@hatfixclean.com / Admin@1234')
-      console.log('*** CHANGE THIS PASSWORD AFTER FIRST LOGIN ***')
+      console.log('Superadmin created — CHANGE PASSWORD AFTER FIRST LOGIN')
     } else {
       console.log('Superadmin already exists')
     }
