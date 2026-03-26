@@ -55,4 +55,20 @@ const updateStatus = async (id, status, note, userId) => {
   return order
 }
 
-module.exports = { list, getById, create, update, updateStatus }
+const addImages = async (id, files) => {
+  const order = await Order.findByPk(id)
+  if (!order) throw Object.assign(new Error('Order not found'), { statusCode: 404 })
+
+  await OrderImage.bulkCreate(
+    files.map(f => ({
+      order_id: id,
+      url: f.url,
+      image_type: 'before',
+      note: f.originalName
+    }))
+  )
+
+  return getById(id)
+}
+
+module.exports = { list, getById, create, update, updateStatus, addImages }
