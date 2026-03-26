@@ -2,11 +2,19 @@ const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
 const { User, Role } = require('../../models')
 
+const { Op } = require('sequelize')
+
 const login = async (email, password) => {
-  if (!email || !password) throw Object.assign(new Error('Email and password required'), { statusCode: 400 })
+  if (!email || !password) throw Object.assign(new Error('Email/ID and password required'), { statusCode: 400 })
+
+  // Support login by email, ID (number), or name
+  const isNumeric = /^\d+$/.test(email)
+  const whereClause = isNumeric
+    ? { id: Number(email), is_active: true }
+    : { email, is_active: true }
 
   const user = await User.findOne({
-    where: { email, is_active: true },
+    where: whereClause,
     include: [{ model: Role, as: 'role' }]
   })
   if (!user) throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 })

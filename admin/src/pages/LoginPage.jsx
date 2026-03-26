@@ -67,17 +67,16 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                อีเมล
+                อีเมล หรือ ID
               </label>
               <input
-                type="email"
-                placeholder="admin@hatfixclean.com"
+                type="text"
+                placeholder="admin@hatfixclean.com หรือ 10000"
                 className={`w-full px-4 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent transition ${
                   errors.email ? 'border-red-400 bg-red-50' : 'border-gray-300'
                 }`}
                 {...register('email', {
-                  required: 'กรุณากรอกอีเมล',
-                  pattern: { value: /^\S+@\S+$/i, message: 'รูปแบบอีเมลไม่ถูกต้อง' },
+                  required: 'กรุณากรอกอีเมลหรือ ID',
                 })}
               />
               {errors.email && (
