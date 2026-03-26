@@ -1,5 +1,6 @@
 const orderService = require('./order.service')
 const { success, error, paginated } = require('../../utils/response')
+const { parseUploadedFiles } = require('../../services/s3.service')
 
 const list = async (req, res) => {
   try {
@@ -50,7 +51,15 @@ const updateStatus = async (req, res) => {
 }
 
 const uploadImages = async (req, res) => {
-  return error(res, 'Upload images - TODO: connect S3/R2', 501)
+  try {
+    const files = parseUploadedFiles(req.files)
+    if (!files.length) return error(res, 'No files uploaded', 400)
+
+    const order = await orderService.addImages(req.params.id, files)
+    return success(res, { order, uploaded: files }, `${files.length} image(s) uploaded`)
+  } catch (err) {
+    return error(res, err.message)
+  }
 }
 
 module.exports = { list, get, create, update, updateStatus, uploadImages }
