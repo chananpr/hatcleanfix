@@ -87,7 +87,11 @@ export const content = {
 
 // ─── LinkedIn Posts ──────────────────────────────────────────────────────────
 export const linkedinPosts = {
+  list: () => client.get('/api/linkedin-posts').then((r) => r.data),
   generate: (data) => client.post('/api/linkedin-posts/generate', data).then((r) => r.data),
   generateBatch: (count) => client.post('/api/linkedin-posts/generate-batch', { count }).then((r) => r.data),
   getTopics: () => client.get('/api/linkedin-posts/topics').then((r) => r.data),
+  updateStatus: (id, data) => client.patch('/api/linkedin-posts/' + id + '/status', data).then((r) => r.data),
+  update: (id, data) => client.put('/api/linkedin-posts/' + id, data).then((r) => r.data),
+  remove: (id) => client.delete('/api/linkedin-posts/' + id).then((r) => r.data),
 }

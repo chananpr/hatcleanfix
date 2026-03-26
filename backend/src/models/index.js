@@ -202,6 +202,20 @@ const ConversationMessage = sequelize.define('ConversationMessage', {
   raw_payload:  { type: DataTypes.JSON }
 }, { tableName: 'conversation_messages' })
 
+// ====== LINKEDIN POSTS ======
+
+const LinkedInPost = sequelize.define('LinkedInPost', {
+  id:          { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  content:     { type: DataTypes.TEXT, allowNull: false },
+  topic:       { type: DataTypes.STRING },
+  style:       { type: DataTypes.STRING },
+  status:      { type: DataTypes.ENUM('draft', 'approved', 'posted', 'skipped'), defaultValue: 'draft' },
+  posted_at:   { type: DataTypes.DATE },
+  posted_url:  { type: DataTypes.STRING },
+  note:        { type: DataTypes.TEXT },
+  created_by:  { type: DataTypes.INTEGER },
+}, { tableName: 'linkedin_posts' })
+
 // ====== ASSOCIATIONS ======
 
 Role.belongsToMany(Permission, { through: RolePermission, foreignKey: 'role_id' })
@@ -236,5 +250,6 @@ module.exports = {
   Order, OrderItem, OrderStatusLog, OrderImage,
   Shipment, Payment,
   PortfolioItem, Testimonial, SiteSetting,
-  ConversationThread, ConversationMessage
+  ConversationThread, ConversationMessage,
+  LinkedInPost
 }
