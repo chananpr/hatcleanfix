@@ -32,6 +32,7 @@ app.use('/api/dashboard',   require('./modules/dashboard/dashboard.routes'))
 app.use('/api/content',     require('./modules/content/content.routes'))
 app.use('/api/pricing',     require('./modules/pricing/pricing.routes'))
 app.use('/api/reports',     require('./modules/reports/report.routes'))
+app.use('/api/linkedin-posts', require('./modules/linkedin-post/linkedin-post.routes'))
 
 // 404
 app.use((req, res) => {

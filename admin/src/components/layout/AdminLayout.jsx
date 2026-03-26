@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { path: '/pricing', icon: PricingIcon, label: 'ราคา', roles: ['superadmin', 'admin'] },
   { path: '/attribution', icon: MarketingIcon, label: 'การตลาด', roles: ['superadmin', 'admin'] },
   { path: '/content', icon: ContentIcon, label: 'คอนเทนต์', roles: ['superadmin', 'admin'] },
+  { path: '/linkedin', icon: MarketingIcon, label: 'LinkedIn Posts', roles: ['superadmin'] },
 ]
 
 export default function AdminLayout() {

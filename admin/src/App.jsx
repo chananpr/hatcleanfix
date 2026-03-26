@@ -11,6 +11,7 @@ import UsersPage from './pages/UsersPage.jsx'
 import PricingPage from './pages/PricingPage.jsx'
 import AttributionPage from './pages/AttributionPage.jsx'
 import ContentPage from './pages/ContentPage.jsx'
+import LinkedInPage from './pages/LinkedInPage.jsx'
 
 export default function App() {
   return (
@@ -74,6 +75,15 @@ export default function App() {
           element={
             <ProtectedRoute roles={['superadmin', 'admin']}>
               <ContentPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="linkedin"
+          element={
+            <ProtectedRoute roles={['superadmin']}>
+              <LinkedInPage />
             </ProtectedRoute>
           }
         />

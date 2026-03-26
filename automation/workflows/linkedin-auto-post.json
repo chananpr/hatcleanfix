@@ -1,0 +1,136 @@
+{
+  "name": "LinkedIn Auto Post",
+  "description": "Receives approved post from Admin panel and publishes to LinkedIn via API",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "parameters": {
+        "path": "linkedin-post",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "validate-post",
+      "name": "Validate Post",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.content }}",
+              "operation": "isNotEmpty"
+            },
+            {
+              "value1": "={{ $json.secret }}",
+              "operation": "equals",
+              "value2": "={{ $env.LINKEDIN_WEBHOOK_SECRET }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "post-to-linkedin",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 250],
+      "parameters": {
+        "url": "https://api.linkedin.com/v2/ugcPosts",
+        "method": "POST",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "author",
+              "value": "urn:li:person:{{ $json.linkedinPersonId }}"
+            },
+            {
+              "name": "lifecycleState",
+              "value": "PUBLISHED"
+            },
+            {
+              "name": "specificContent",
+              "value": {
+                "com.linkedin.ugc.ShareContent": {
+                  "shareCommentary": {
+                    "text": "={{ $json.content }}"
+                  },
+                  "shareMediaCategory": "NONE"
+                }
+              }
+            },
+            {
+              "name": "visibility",
+              "value": {
+                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+              }
+            }
+          ]
+        }
+      },
+      "typeVersion": 1,
+      "notes": "Requires LinkedIn OAuth2 access token with w_member_social scope"
+    },
+    {
+      "id": "success-response",
+      "name": "Success Log",
+      "type": "n8n-nodes-base.set",
+      "position": [850, 250],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "posted"
+            },
+            {
+              "name": "postedAt",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [{ "node": "validate-post", "type": "main", "index": 0 }]
+      ]
+    },
+    "validate-post": {
+      "main": [
+        [{ "node": "post-to-linkedin", "type": "main", "index": 0 }]
+      ]
+    },
+    "post-to-linkedin": {
+      "main": [
+        [{ "node": "success-response", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["linkedin", "automation", "social-media"]
+}

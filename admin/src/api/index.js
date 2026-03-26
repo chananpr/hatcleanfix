@@ -84,3 +84,10 @@ export const content = {
     update: (data) => client.put('/api/content/settings', data).then((r) => r.data),
   },
 }
+
+// ─── LinkedIn Posts ──────────────────────────────────────────────────────────
+export const linkedinPosts = {
+  generate: (data) => client.post('/api/linkedin-posts/generate', data).then((r) => r.data),
+  generateBatch: (count) => client.post('/api/linkedin-posts/generate-batch', { count }).then((r) => r.data),
+  getTopics: () => client.get('/api/linkedin-posts/topics').then((r) => r.data),
+}
