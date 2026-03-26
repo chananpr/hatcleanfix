@@ -25,3 +25,4 @@ Thumbs.db
 
 # Package lock (per-machine)
 package-lock.json
+backend/uploads/
