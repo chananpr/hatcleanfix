@@ -1,84 +1,154 @@
-# HATZ - Hat Fix & Clean Platform
+<div align="center">
 
-> **Solo-built** production e-commerce + operations platform with **real AI shipped to production** — not demos, not tutorials, actual AI agents handling live customers and automating business operations daily.
+# 🎩 HATZ — Hat Fix & Clean Platform
 
-**Live:** [hatfixclean.com](https://hatfixclean.com) &nbsp;|&nbsp; **Admin:** [admin.hatfixclean.com](https://admin.hatfixclean.com) &nbsp;|&nbsp; **API:** [api.hatfixclean.com](https://api.hatfixclean.com)
+### AI-Powered E-Commerce & Operations Platform
+
+**Solo-built.** Production-grade. Real AI in production — not demos.
+
+[![Live](https://img.shields.io/badge/🌐_Live-hatfixclean.com-blue?style=for-the-badge)](https://hatfixclean.com)
+[![Admin](https://img.shields.io/badge/🔧_Admin-admin.hatfixclean.com-green?style=for-the-badge)](https://admin.hatfixclean.com)
+[![API](https://img.shields.io/badge/⚡_API-api.hatfixclean.com-orange?style=for-the-badge)](https://api.hatfixclean.com)
+
+</div>
 
 ---
 
-## Why This Project Matters
+## 📸 Screenshots
 
-Most developers add "AI" to their resume after calling one API endpoint. This platform has **4 separate AI systems running in production**, each solving a real business problem — from auto-replying to customers on Messenger to generating content for LinkedIn. Every line of code, every architecture decision, every deployment — built and owned by one person.
+| Admin Dashboard | AI Chat (Claude SSE) | Messenger Bot Flow |
+|:---:|:---:|:---:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![AI Chat](docs/screenshots/ai-chat.png) | ![Messenger Flow](docs/screenshots/messenger-flow.png) |
+
+| Order Lifecycle | Payment & Logistics | LinkedIn AI Engine |
+|:---:|:---:|:---:|
+| ![Orders](docs/screenshots/orders.png) | ![Payment](docs/screenshots/payment.png) | ![LinkedIn](docs/screenshots/linkedin-ai.png) |
 
 ---
 
-## Architecture
+## 🧠 Overview
+
+A complete **production SaaS platform** for a hat cleaning business — handling everything from customer-facing e-commerce to internal operations, payments, logistics, and AI-powered automation.
+
+**This is not a tutorial project.** It runs a real business with real customers, real payments, and real AI agents working 24/7.
+
+> **One person. Four AI systems. Two platforms. Zero excuses.**
+
+---
+
+## 🤖 AI Systems — The Core Differentiator
+
+> 90% of developers don't have this. This is the killer point.
+
+### 1. 💬 Claude Admin Chat — SSE Streaming
+Real-time AI assistant inside the admin dashboard. Streams responses instantly via Server-Sent Events.
+
+```
+Admin asks question → Claude API → SSE Stream → Real-time response
+```
+
+- Anthropic Claude API with conversation memory
+- Server-Sent Events for instant streaming UX
+- Used daily for operations support
+
+### 2. 🤖 Messenger AI Bot — GPT-4o + n8n (16 Functions)
+Fully automated customer support on Facebook Messenger. **Zero human intervention.**
+
+```
+Customer message → Facebook Webhook → n8n → GPT-4o (16 functions) → Auto-reply + CRM update
+```
+
+- OpenAI GPT-4o with **16 function calling tools**
+- Auto-extracts: name, phone, address, service needed
+- Creates leads & orders from conversation
+- Context-aware responses with buffer memory
+
+### 3. ✍️ LinkedIn AI Engine — Content Generation
+AI-powered content system for personal branding. Generate → Edit → Post → Track.
+
+```
+Select topic → Claude generates draft → Review/Edit → Post to LinkedIn → Track performance
+```
+
+- 20-topic rotation, 4 writing styles
+- Full post lifecycle management
+- Performance tracking per post
+
+### 4. 📊 Ad Attribution Intelligence
+Automatic tracking: **Facebook Ad Click → Customer Conversion → Revenue**
+
+```
+Ad click → Messenger → Extract campaign/adset/ad → Link to customer → Calculate ROI
+```
+
+- Real ROI per ad campaign
+- Campaign → Adset → Ad level tracking
+- Revenue attribution per customer
+
+---
+
+## 🏗️ System Architecture
 
 ```mermaid
 graph TB
-    subgraph CDN["☁️ Cloudflare DNS / CDN / SSL"]
+    subgraph CDN["☁️ Cloudflare CDN / SSL"]
     end
 
     subgraph Clients["Client Layer"]
-        FE["🌐 Frontend<br/>React 19 · Vite<br/>Public Storefront"]
-        ADMIN["🔧 Admin Panel<br/>React 19 · Vite<br/>4-Role RBAC Dashboard"]
-        N8N["⚡ Automation<br/>n8n · Self-hosted<br/>Messenger Bot · Workflows"]
+        FE["🌐 Storefront<br/>React 19 · Vite"]
+        ADMIN["🔧 Admin Panel<br/>React 19 · 4-Role RBAC"]
+        N8N["⚡ n8n<br/>AI Workflows"]
     end
 
-    subgraph API["🖥️ Express.js REST API — JWT Auth · 15 Modules · 23 Models"]
-        AUTH["🔐 Auth<br/>JWT · RBAC"]
-        ORDERS["📦 Orders<br/>15-Step Lifecycle"]
-        PAY["💳 Payments<br/>Xendit QR Webhook"]
-        SHIP["🚚 Shipments<br/>iShip API"]
-        CRM["👥 CRM<br/>Customers · Leads"]
-        DASH["📊 Dashboard<br/>Reports · Analytics"]
+    subgraph API["🖥️ Express.js API — 15 Modules · 23 Models"]
+        AUTH["🔐 Auth · JWT · RBAC"]
+        ORDERS["📦 Orders · 15-Step"]
+        PAY["💳 Xendit QR"]
+        SHIP["🚚 iShip API"]
+        CRM["👥 CRM · Leads"]
+        DASH["📊 Analytics"]
     end
 
-    subgraph AI["🤖 AI Integration Layer"]
-        CLAUDE["Claude API<br/>SSE Streaming<br/>Admin Chat"]
-        GPT["OpenAI GPT-4o<br/>Messenger Bot<br/>Auto-Reply"]
-        LINKEDIN["Claude AI<br/>LinkedIn Engine<br/>Content Generation"]
-        ATTR["Ad Attribution<br/>Facebook → Revenue<br/>Campaign ROI"]
+    subgraph AI["🤖 AI Layer"]
+        CLAUDE["Claude API<br/>SSE Streaming"]
+        GPT["GPT-4o<br/>16 Functions"]
+        LINKEDIN["Claude AI<br/>Content Engine"]
+        ATTR["Ad Attribution<br/>ROI Tracking"]
     end
 
-    subgraph Data["☁️ AWS Cloud"]
-        RDS[("🗄️ AWS RDS<br/>MySQL 8.0")]
-        S3["📁 AWS S3<br/>Media Storage"]
-        REDIS["⚡ Redis 7<br/>Cache · Sessions"]
+    subgraph Cloud["☁️ AWS"]
+        RDS[("MySQL 8.0<br/>AWS RDS")]
+        S3["S3 Storage"]
+        REDIS["Redis 7<br/>Cache"]
     end
 
-    CDN --> FE & ADMIN & N8N
-    FE & ADMIN & N8N --> API
+    CDN --> Clients
+    Clients --> API
     API --> AI
-    API --> RDS & S3 & REDIS
-    AI --> RDS
+    API --> Cloud
+    AI --> Cloud
 
-    style CDN fill:#f59e0b,stroke:#d97706,color:#000
     style AI fill:#8b5cf6,stroke:#7c3aed,color:#fff
-    style Data fill:#10b981,stroke:#059669,color:#fff
     style CLAUDE fill:#d946ef,stroke:#c026d3,color:#fff
     style GPT fill:#06b6d4,stroke:#0891b2,color:#fff
     style LINKEDIN fill:#3b82f6,stroke:#2563eb,color:#fff
-    style ATTR fill:#f97316,stroke:#ea580c,color:#fff
 ```
 
 ### AI Data Flow
 
 ```mermaid
 flowchart LR
-    A["👤 Customer<br/>Messenger"] -->|message| B["📨 Facebook<br/>Webhook"]
-    B --> C["⚡ n8n<br/>Workflow"]
-    C --> D["🤖 OpenAI<br/>GPT-4o"]
+    A["👤 Customer"] -->|message| B["📨 Messenger"]
+    B --> C["⚡ n8n"]
+    C --> D["🤖 GPT-4o<br/>16 functions"]
     D -->|auto-reply| A
-    C -->|extract data| E[("🗄️ CRM<br/>Database")]
-    C -->|track| F["📊 Ad Attribution<br/>Campaign → ROI"]
+    C -->|extract data| E[("🗄️ CRM")]
+    C -->|track| F["📊 Ad ROI"]
 
     G["👨‍💻 Admin"] -->|chat| H["🤖 Claude<br/>SSE Stream"]
     H -->|response| G
-
-    G -->|generate| I["✍️ LinkedIn<br/>AI Engine"]
+    G -->|generate| I["✍️ LinkedIn AI"]
     I -->|draft| G
-    G -->|copy & post| J["🔗 LinkedIn"]
 
     style D fill:#06b6d4,stroke:#0891b2,color:#fff
     style H fill:#d946ef,stroke:#c026d3,color:#fff
@@ -87,162 +157,94 @@ flowchart LR
 
 ---
 
-## AI & Automation — The Core Differentiator
-
-This isn't a CRUD app with an AI chatbot bolted on. AI is deeply integrated into the business workflow:
-
-### 1. Claude Admin Chat (SSE Streaming)
-Real-time AI assistant inside the admin dashboard. Streams responses via Server-Sent Events for instant feedback. Used daily by the team for operations support.
-- **Tech:** Anthropic Claude API, SSE streaming, conversation memory
-- **Module:** `backend/src/modules/ai-chat/`
-
-### 2. Messenger AI Bot (n8n + OpenAI)
-Fully automated customer support bot on Facebook Messenger. Handles inquiries, collects customer data, and creates lead profiles — all without human intervention.
-- **Tech:** n8n workflows, OpenAI GPT-4o, buffer memory, Facebook Messenger API
-- **How it works:** Customer messages → n8n webhook → OpenAI processes with context → auto-reply + extract customer data → save to CRM
-- **Module:** `automation/` + `backend/src/modules/webhooks/`
-
-### 3. LinkedIn Content Engine (Claude AI)
-AI-powered content generation system for LinkedIn personal branding. Generate, review, edit, and track posts — all from the admin panel.
-- **Tech:** Claude API, 20-topic rotation, 4 writing styles, post status tracking
-- **Flow:** Generate draft → Edit/Review → Copy to LinkedIn → Mark as Posted
-- **Module:** `backend/src/modules/linkedin-post/`
-
-### 4. Ad Attribution Intelligence
-Automatic tracking from Facebook ad click to customer conversion. Links campaign → adset → ad to actual revenue — giving real ROI per ad.
-- **Tech:** Facebook Messenger webhook data extraction, campaign/adset/ad parsing
-- **Module:** `backend/src/modules/leads/`
-
-### Automation Workflows (n8n)
-Self-hosted n8n instance running production workflows:
-- Customer message → AI reply → CRM update (fully automated)
-- Payment webhook → Order status update → Customer notification
-- Shipment creation → Tracking number → Delivery updates
-
----
-
-## System Builder Mindset
-
-This project demonstrates end-to-end system ownership — not just writing code, but making every product and infrastructure decision:
-
-| Responsibility | What I Built |
-|---|---|
-| **Database Design** | 23 Sequelize models, relational schema, migration strategy |
-| **API Architecture** | 15 domain modules, clean separation of concerns, middleware chain |
-| **Auth & Security** | JWT tokens, 4-role RBAC, route-level permission guards |
-| **Payment System** | Xendit QR gateway, webhook-based idempotent processing |
-| **Logistics** | iShip API integration, automated shipment creation & tracking |
-| **Real-time** | WebSocket (Socket.IO) for live order/warehouse updates |
-| **AI Integration** | 4 separate AI systems, each solving different business problems |
-| **Infrastructure** | AWS EC2 + RDS + S3, Docker, Nginx, PM2, CI/CD |
-| **Frontend** | 2 React 19 apps (storefront + admin), responsive, fast |
-| **Automation** | n8n workflows replacing manual business processes |
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 19, Vite, Tailwind CSS, Zustand, React Query, Recharts |
-| **Admin** | React 19, Vite, Tailwind CSS, 4-role RBAC dashboard |
-| **Backend** | Node.js, Express.js, Sequelize ORM, Zod validation |
-| **Database** | AWS RDS (MySQL 8.0), Redis 7 (session/cache) |
-| **Storage** | AWS S3 (media uploads, order photos) |
-| **AI** | Claude API (SSE), OpenAI GPT-4o (function calling), n8n AI agents |
-| **Automation** | n8n (self-hosted), Facebook Messenger webhooks |
-| **Infra** | AWS EC2, Docker Compose, Nginx, PM2 |
-| **Payments** | Xendit QR Gateway (webhook-based, idempotent) |
-| **Logistics** | iShip API (shipment creation, tracking) |
-| **DNS/CDN** | Cloudflare (SSL, caching, DNS) |
-
-## Features
+## 🏪 Core Features
 
 ### E-Commerce & Orders
-- Public storefront with service catalog and pricing engine
-- 15-step order lifecycle (draft → payment → cleaning → QC → delivery)
-- Webhook-based payment confirmation (Xendit QR) — orders created only after confirmed payment
-- Automated shipment creation & tracking (iShip API)
-- S3 image upload for before/after order photos
+- 🛒 Public storefront with service catalog & pricing engine
+- 📦 **15-step order lifecycle** (draft → payment → cleaning → QC → delivery)
+- 💳 Webhook-based Xendit QR payments (idempotent processing)
+- 🚚 Automated shipment creation & tracking (iShip API)
+- 📸 S3 image upload for before/after photos
 
-### Admin Dashboard
-- Role-based access control (superadmin, admin, staff, viewer)
-- Real-time order management with WebSocket updates
-- Customer CRM with Facebook Messenger integration
-- Revenue reports & analytics with Recharts
-- Lead tracking with ad attribution (campaign → adset → ad ROI)
-- AI Chat assistant (Claude SSE streaming)
-- LinkedIn content management with AI generation
-- n8n automation monitoring
+### Admin Dashboard (4-Role RBAC)
+- 📊 Real-time analytics with Recharts
+- 📋 Order management with WebSocket live updates
+- 👥 Customer CRM with Messenger integration
+- 💰 Revenue reports & ad attribution
+- 🤖 AI Chat, LinkedIn AI, Automation monitoring
 
-## Project Structure
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|:--|:--|
+| **Frontend** | React 19, Vite, Tailwind CSS, Zustand, React Query |
+| **Backend** | Node.js, Express.js, Sequelize ORM, Zod |
+| **Database** | AWS RDS MySQL 8.0, Redis 7 |
+| **AI** | Claude API (SSE), OpenAI GPT-4o (16 function calls), n8n AI agents |
+| **Payments** | Xendit QR Gateway (webhook) |
+| **Logistics** | iShip API |
+| **Infra** | AWS EC2 + RDS + S3, Docker, Nginx, PM2, Cloudflare |
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# Infrastructure
+docker-compose up -d          # MySQL + Redis + n8n
+
+# Backend
+cd backend && cp .env.example .env && npm install
+npm run sync-db && npm run dev   # → port 4000
+
+# Frontend
+cd frontend && npm install && npm run dev    # → port 3000
+
+# Admin
+cd admin && npm install && npm run dev       # → port 3001
+```
+
+---
+
+## 📁 Project Structure
 
 ```
 hatfixclean/
-├── frontend/          → Public storefront (React 19 + Vite)
-├── admin/             → Backoffice dashboard (React 19 + Vite)
-│   └── src/pages/
-│       ├── DashboardPage     → Analytics overview
-│       ├── OrdersPage        → Order lifecycle management
-│       ├── AiChatPage        → Claude AI assistant
-│       ├── LinkedInPage      → AI content generation + tracking
-│       └── AutomationPage    → n8n workflow monitoring
-├── backend/           → REST API (Node.js/Express)
-│   └── src/modules/
-│       ├── ai-chat/       → Claude API (SSE streaming)
-│       ├── linkedin-post/ → AI content engine + post tracking
-│       ├── webhooks/      → Messenger + payment webhooks
-│       ├── orders/        → 15-step order lifecycle
-│       ├── payments/      → Xendit QR processing
-│       ├── shipments/     → iShip logistics
-│       ├── leads/         → Lead + ad attribution tracking
-│       ├── customers/     → CRM & customer profiles
-│       ├── n8n/           → Automation management
-│       ├── dashboard/     → Analytics & reports
-│       ├── pricing/       → Service pricing engine
-│       ├── content/       → CMS (portfolio, testimonials)
-│       ├── auth/          → JWT + RBAC authentication
-│       ├── users/         → User management
-│       └── reports/       → Revenue & performance
-├── automation/        → n8n workflows & AI agent configs
-└── docker-compose.yml → MySQL + Redis + n8n
+├── frontend/          → Public storefront (React 19)
+├── admin/             → Backoffice dashboard (React 19, RBAC)
+├── backend/src/modules/
+│   ├── ai-chat/       → Claude SSE streaming
+│   ├── linkedin-post/ → AI content engine
+│   ├── webhooks/      → Messenger + payment webhooks
+│   ├── orders/        → 15-step order lifecycle
+│   ├── payments/      → Xendit QR processing
+│   ├── shipments/     → iShip logistics
+│   ├── leads/         → Lead + ad attribution
+│   ├── customers/     → CRM
+│   └── ... 15 modules total
+├── automation/        → n8n workflows & AI configs
+└── docker-compose.yml
 ```
 
-## Infrastructure
+---
 
-| Service | Provider | Details |
-|---------|----------|---------|
-| Compute | AWS EC2 | Ubuntu, ap-southeast-1 (Singapore) |
-| Database | AWS RDS | MySQL 8.0, db.t4g.micro |
-| Storage | AWS S3 | `hatfixclean-media` bucket |
-| Cache | Redis 7 | Docker, session & query cache |
-| Automation | n8n | Self-hosted, Docker, production workflows |
-| DNS/CDN | Cloudflare | SSL termination, caching, DDoS protection |
+## 💡 Key Takeaways
 
-## Quick Start
+- ✅ **Production system**, not a prototype — serves real customers daily
+- ✅ **4 AI systems** integrated into actual business operations
+- ✅ **Full ownership** — every architecture decision, every deployment, one person
+- ✅ **Real payments**, real logistics, real data — not mock APIs
+- ✅ **Scalable infrastructure** — 99.9% uptime on AWS
 
-```bash
-# 1. Infrastructure
-docker-compose up -d   # MySQL + Redis + n8n
+---
 
-# 2. Backend
-cd backend
-cp .env.example .env   # Configure DB, S3, AI API keys
-npm install
-npm run sync-db        # Create tables + seed data
-npm run dev            # port 4000
+## 👤 Author
 
-# 3. Frontend
-cd frontend && npm install && npm run dev    # port 3000
+**Chanan Preecha (Mai)** — Solo developer & system builder
 
-# 4. Admin
-cd admin && npm install && npm run dev       # port 3001
-```
+I'm particularly interested in working as an early technical member to help build and scale products with real impact.
 
-## Author
-
-**Chanan Preecha** — Solo developer, system builder, AI integration engineer
-
-One person. Two production platforms. Four AI systems. Zero excuses.
-
-[LinkedIn](https://www.linkedin.com/in/chanan-preecha-898750278/) · [GitHub](https://github.com/chananpr)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/chanan-preecha-898750278/)
+[![Email](https://img.shields.io/badge/Email-Contact-red?style=flat-square&logo=gmail)](mailto:chanan.pr1145x@gmail.com)
