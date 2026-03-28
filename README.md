@@ -51,7 +51,7 @@ Admin asks question → Claude API → SSE Stream → Real-time response
 - Server-Sent Events for instant streaming UX
 - Used daily for operations support
 
-### 2. 🤖 Messenger AI Bot — GPT-4o + n8n (16 Functions)
+### 2. 🤖 Messenger AI Bot — Claude Sonnet (Direct API, replaced n8n)
 Fully automated customer support on Facebook Messenger. **Zero human intervention.**
 
 ```
@@ -154,6 +154,73 @@ flowchart LR
     style H fill:#d946ef,stroke:#c026d3,color:#fff
     style I fill:#3b82f6,stroke:#2563eb,color:#fff
 ```
+
+---
+
+
+## 📦 Order Lifecycle — End-to-End Flow
+
+> ระบบติดตามออเดอร์ตั้งแต่ลูกค้าทักมาจนส่งหมวกกลับคืน — 15 สถานะ, tracking ตลอดเวลา
+
+```mermaid
+flowchart TD
+    A[🧑 ลูกค้าทัก Messenger] --> B[🤖 AI สอบถามข้อมูล]
+    B --> C{ลูกค้าตกลง<br/>ใช้บริการ?}
+    C -->|ไม่| Z[💤 Lead: Lost]
+    C -->|ตกลง| D[📋 สร้าง Order<br/>status: draft]
+
+    D --> E[📦 ลูกค้าส่งหมวกมา<br/>+ ส่งรูปเลขพัสดุ]
+    E --> F[🤖 AI อ่านเลขพัสดุ<br/>จากรูป Vision OCR]
+    F --> G[📮 อัพเดท inbound_tracking<br/>status: inbound_shipped]
+
+    G --> H[📥 ร้านรับหมวก<br/>status: received]
+    H --> I[🔧 ดำเนินการ<br/>ซัก / ดัดทรง / ซ่อม]
+
+    I --> J[📸 ถ่ายรูป QC<br/>ส่งให้ลูกค้าดู]
+    J --> K[💰 แจ้งราคา<br/>status: awaiting_payment]
+
+    K --> L{ลูกค้า<br/>ชำระเงิน?}
+    L -->|QR Payment| M[✅ ยืนยันชำระ<br/>status: paid]
+    M --> N[📦 จัดส่งกลับ<br/>+ เลขพัสดุขาออก]
+    N --> O[🚚 status: shipped<br/>outbound_tracking]
+    O --> P[✅ ลูกค้าได้รับ<br/>status: delivered]
+    P --> Q[🎉 ปิดออเดอร์<br/>status: closed]
+
+    style A fill:#1877F2,color:#fff
+    style B fill:#D97757,color:#fff
+    style F fill:#D97757,color:#fff
+    style M fill:#4CAF50,color:#fff
+    style Q fill:#4CAF50,color:#fff
+```
+
+### 🔄 15-Step Order Status Flow
+
+```
+draft → awaiting_inbound_shipment → inbound_shipped → received
+→ in_progress → washing → shaping → qc → completed
+→ awaiting_payment → paid → ready_to_ship → shipped → delivered → closed
+```
+
+### 📊 What Gets Tracked
+
+| ข้อมูล | รายละเอียด |
+|---|---|
+| **Inbound Tracking** | เลขพัสดุขาเข้า — ลูกค้าส่งหมวกมา |
+| **Outbound Tracking** | เลขพัสดุขาออก — ร้านส่งหมวกกลับ |
+| **Order Images** | รูป before/after/payment/shipment |
+| **Status Logs** | บันทึกทุกการเปลี่ยนสถานะ + เวลา + ผู้เปลี่ยน |
+| **Payment Status** | unpaid → partial → paid |
+| **AI Conversations** | ประวัติแชททั้งหมดผูกกับ Order |
+
+### 🤖 AI ช่วยอะไรใน Flow นี้
+
+```
+ลูกค้าทัก     →  AI สร้าง Lead อัตโนมัติ + สกัดข้อมูล (ชื่อ, จังหวัด, บริการ)
+ส่งรูปพัสดุ   →  AI อ่านเลขพัสดุจากรูป (Claude Vision) + อัพเดท Order
+ถามสถานะ      →  AI ดึงข้อมูล Order จาก DB + ตอบลูกค้าทันที
+ถามราคา       →  AI ดึง Pricing Tiers จาก DB + คำนวณให้
+```
+
 
 ---
 
