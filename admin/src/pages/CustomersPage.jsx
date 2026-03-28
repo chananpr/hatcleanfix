@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { customers } from '../api/index.js'
+import { usePage } from '../contexts/PageContext.jsx'
 import PageHeader from '../components/common/PageHeader.jsx'
 import { format } from 'date-fns'
 import { th } from 'date-fns/locale'
@@ -75,14 +76,16 @@ function CustomerDetailModal({ customer, onClose }) {
 }
 
 export default function CustomersPage() {
+  const { selectedPage } = usePage()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', search, page],
+    queryKey: ['customers', search, page, selectedPage?.page_id],
     queryFn: () =>
-      customers.list({ search: search || undefined, page, limit: 20 }),
+      customers.list({ search: search || undefined, page, limit: 20, page_id: selectedPage?.page_id }),
+    enabled: !!selectedPage?.page_id,
   })
 
   const formatDate = (d) => {
@@ -93,6 +96,17 @@ export default function CustomersPage() {
   const items = data?.data || data?.customers || []
   const total = data?.total || 0
   const totalPages = Math.ceil(total / 20) || 1
+
+  if (!selectedPage?.page_id) {
+    return (
+      <div>
+        <PageHeader title="ลูกค้า" subtitle="" />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+          <p className="text-gray-400 text-lg">กรุณาเลือกเพจจากเมนูด้านบน</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>

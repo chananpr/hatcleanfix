@@ -3,12 +3,14 @@ const { Op } = require('sequelize')
 
 const list = async (req, res) => {
   try {
-    const { status, assigned_to, page = 1, limit = 20 } = req.query
+    const { status, assigned_to, page = 1, limit = 20, page_id } = req.query
     const where = {}
     if (status) where.status = status
     if (assigned_to) where.assigned_to = assigned_to
     // staff เห็นเฉพาะที่ assigned ให้ตัวเอง
     if (req.user.role === 'staff') where.assigned_to = req.user.id
+    // TODO: add page_id column to Lead model, then uncomment:
+    // if (page_id) where.page_id = page_id
 
     const { count, rows } = await Lead.findAndCountAll({
       where,

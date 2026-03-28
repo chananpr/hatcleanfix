@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 import { dashboard } from '../api/index.js'
+import { usePage } from '../contexts/PageContext.jsx'
 import StatusBadge from '../components/common/StatusBadge.jsx'
 import PageHeader from '../components/common/PageHeader.jsx'
 import { format } from 'date-fns'
@@ -48,14 +49,18 @@ function LoadingSkeleton() {
 }
 
 export default function DashboardPage() {
+  const { selectedPage } = usePage()
+
   const { data: summary, isLoading: loadingSummary } = useQuery({
-    queryKey: ['dashboard', 'summary'],
-    queryFn: dashboard.summary,
+    queryKey: ['dashboard', 'summary', selectedPage?.page_id],
+    queryFn: () => dashboard.summary({ page_id: selectedPage?.page_id }),
+    enabled: !!selectedPage?.page_id,
   })
 
   const { data: orderStats } = useQuery({
-    queryKey: ['dashboard', 'orderStats'],
-    queryFn: dashboard.orderStats,
+    queryKey: ['dashboard', 'orderStats', selectedPage?.page_id],
+    queryFn: () => dashboard.orderStats({ page_id: selectedPage?.page_id }),
+    enabled: !!selectedPage?.page_id,
   })
 
   const formatMoney = (n) =>
@@ -68,6 +73,17 @@ export default function DashboardPage() {
     } catch {
       return d
     }
+  }
+
+  if (!selectedPage?.page_id) {
+    return (
+      <div>
+        <PageHeader title="แดชบอร์ด" subtitle="ภาพรวมธุรกิจวันนี้" />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+          <p className="text-gray-400 text-lg">กรุณาเลือกเพจจากเมนูด้านบน</p>
+        </div>
+      </div>
+    )
   }
 
   return (

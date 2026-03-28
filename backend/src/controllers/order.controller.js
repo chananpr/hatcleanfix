@@ -2,10 +2,12 @@ const { Order, OrderItem, OrderStatusLog, OrderImage, Customer, User, Lead } = r
 
 const list = async (req, res) => {
   try {
-    const { status, assigned_to, page = 1, limit = 20 } = req.query
+    const { status, assigned_to, page = 1, limit = 20, page_id } = req.query
     const where = {}
     if (status) where.status = status
     if (req.user.role === 'staff') where.assigned_to = req.user.id
+    // TODO: add page_id column to Order model, then uncomment:
+    // if (page_id) where.page_id = page_id
 
     const { count, rows } = await Order.findAndCountAll({
       where,

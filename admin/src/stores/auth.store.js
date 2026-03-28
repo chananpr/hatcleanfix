@@ -17,7 +17,7 @@ const useAuthStore = create((set, get) => ({
 
   login: async (email, password) => {
     const res = await axios.post(`${API_URL}/api/auth/login`, { email, password })
-    const { token, user } = res.data
+    const { token, user } = res.data.data
     localStorage.setItem('hatz_token', token)
     localStorage.setItem('hatz_user', JSON.stringify(user))
     set({ token, user, isAuthenticated: true })

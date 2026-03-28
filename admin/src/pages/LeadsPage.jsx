@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { leads } from '../api/index.js'
+import { usePage } from '../contexts/PageContext.jsx'
 import StatusBadge, { LEAD_STATUSES } from '../components/common/StatusBadge.jsx'
 import PageHeader from '../components/common/PageHeader.jsx'
 import { format } from 'date-fns'
@@ -103,15 +104,17 @@ function LeadDetailModal({ lead, onClose, onStatusChange, onConvert }) {
 
 export default function LeadsPage() {
   const qc = useQueryClient()
+  const { selectedPage } = usePage()
   const [activeTab, setActiveTab] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [selectedLead, setSelectedLead] = useState(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['leads', activeTab, search, page],
+    queryKey: ['leads', activeTab, search, page, selectedPage?.page_id],
     queryFn: () =>
-      leads.list({ status: activeTab || undefined, search: search || undefined, page, limit: 20 }),
+      leads.list({ status: activeTab || undefined, search: search || undefined, page, limit: 20, page_id: selectedPage?.page_id }),
+    enabled: !!selectedPage?.page_id,
   })
 
   const statusMutation = useMutation({
@@ -139,6 +142,17 @@ export default function LeadsPage() {
   const items = data?.data || data?.leads || []
   const total = data?.total || 0
   const totalPages = Math.ceil(total / 20) || 1
+
+  if (!selectedPage?.page_id) {
+    return (
+      <div>
+        <PageHeader title="จัดการลีด" subtitle="" />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+          <p className="text-gray-400 text-lg">กรุณาเลือกเพจจากเมนูด้านบน</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>

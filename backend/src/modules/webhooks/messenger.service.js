@@ -3,10 +3,11 @@ const {
   Customer, Lead, LeadAttribution, Order, Shipment,
   ConversationThread, ConversationMessage
 } = require('../../models')
+const claudeService = require('./claude-messenger.service')
 
 // ============================================================
-// สถาปัตยกรรม: n8n เป็นหลัก (แบบ A)
-// Facebook → Backend (บันทึก DB + forward พร้อมข้อมูลลูกค้า) → n8n AI Agent → ตอบ Messenger
+// สถาปัตยกรรมใหม่: Claude ตรง + Multi-Page Support
+// Facebook → Backend (บันทึก DB + สกัดข้อมูล) → Claude AI → ตอบ Messenger
 // ============================================================
 
 // Facebook Messenger webhook verification (GET)
@@ -26,10 +27,14 @@ const handleMessenger = async (req, res) => {
   const body = req.body
   if (body.object !== 'page') return res.sendStatus(404)
 
-  // ตอบ Facebook ทันที
+  // ตอบ Facebook ทันที (ต้องตอบภายใน 20 วินาที)
   res.sendStatus(200)
 
   for (const entry of body.entry) {
+    // ดึง page_id จาก entry เพื่อหา config ของเพจนั้นๆ
+    const pageId = entry.id
+    const pageConfig = await claudeService.getPageConfig(pageId)
+
     for (const event of entry.messaging) {
       if (event.message?.is_echo) continue
       if (!event.message && !event.postback) continue
@@ -46,7 +51,7 @@ const handleMessenger = async (req, res) => {
           try {
             const profileRes = await axios.get(
               `https://graph.facebook.com/v19.0/${senderPsid}`,
-              { params: { fields: 'name', access_token: process.env.FB_PAGE_ACCESS_TOKEN } }
+              { params: { fields: 'name', access_token: pageConfig.access_token } }
             )
             fbName = profileRes.data.name || ''
           } catch (e) {
@@ -57,7 +62,7 @@ const handleMessenger = async (req, res) => {
             facebook_name: fbName,
             name: fbName
           })
-          console.log('New customer:', fbName, senderPsid)
+          console.log(`[${pageConfig.page_name}] New customer: ${fbName} (${senderPsid})`)
         }
 
         // 2) หา/สร้าง Thread
@@ -66,7 +71,7 @@ const handleMessenger = async (req, res) => {
         })
         if (!thread) {
           thread = await ConversationThread.create({
-            customer_id: customer.id, platform: 'messenger', platform_thread_id: senderPsid
+            customer_id: customer.id, platform: 'messenger', platform_thread_id: senderPsid, page_id: pageId
           })
         }
 
@@ -89,7 +94,7 @@ const handleMessenger = async (req, res) => {
           displayText = `[ส่ง${messageType}]`
         }
 
-        // 4) สกัดข้อมูลจากข้อความลูกค้า (จังหวัด, จำนวนหมวก, เบอร์, เลขพัสดุ)
+        // 4) สกัดข้อมูลจากข้อความลูกค้า
         let extracted = {}
         if (messageText && messageText.length > 1) {
           extracted = await extractCustomerInfo(messageText)
@@ -106,7 +111,6 @@ const handleMessenger = async (req, res) => {
             console.log('Customer updated:', custUpdates)
           }
 
-          // อัพเดท Lead
           const lead = await Lead.findOne({
             where: { customer_id: customer.id, status: ['new', 'awaiting_details', 'awaiting_photos', 'awaiting_shipment'] },
             order: [['createdAt', 'DESC']]
@@ -119,17 +123,22 @@ const handleMessenger = async (req, res) => {
             if (Object.keys(leadUpdates).length > 0) await lead.update(leadUpdates)
           }
 
-          // บันทึกเลขพัสดุ
-          if (extracted.tracking_number && lead) {
-            await lead.update({ status: 'awaiting_shipment' })
-            const order = await Order.findOne({ where: { lead_id: lead.id } })
-            if (order) {
-              await Shipment.create({
-                order_id: order.id, direction: 'inbound',
-                courier: extracted.courier || '', tracking_number: extracted.tracking_number,
-                status: 'shipped', shipped_at: new Date()
-              })
-              await order.update({ status: 'inbound_shipped', inbound_tracking: extracted.tracking_number })
+          if (extracted.tracking_number) {
+            const trackLead = await Lead.findOne({
+              where: { customer_id: customer.id, status: ['new', 'awaiting_details', 'awaiting_photos', 'awaiting_shipment'] },
+              order: [['createdAt', 'DESC']]
+            })
+            if (trackLead) {
+              await trackLead.update({ status: 'awaiting_shipment' })
+              const order = await Order.findOne({ where: { lead_id: trackLead.id } })
+              if (order) {
+                await Shipment.create({
+                  order_id: order.id, direction: 'inbound',
+                  courier: extracted.courier || '', tracking_number: extracted.tracking_number,
+                  status: 'shipped', shipped_at: new Date()
+                })
+                await order.update({ status: 'inbound_shipped', inbound_tracking: extracted.tracking_number })
+              }
             }
           }
         }
@@ -139,25 +148,16 @@ const handleMessenger = async (req, res) => {
           thread_id: thread.id,
           direction: 'inbound',
           content: displayText,
-          ai_extracted: { message_type: messageType, ...extracted },
+          ai_extracted: { message_type: messageType, page_id: pageId, ...extracted },
           raw_payload: event
         })
 
-        // 7) ดึงข้อมูลลูกค้าเพิ่มเติม (order history)
-        const orderCount = await Order.count({ where: { customer_id: customer.id } })
-        const latestOrder = await Order.findOne({
-          where: { customer_id: customer.id },
-          order: [['createdAt', 'DESC']],
-          raw: true
-        })
-
-        // 6) สร้าง Lead ถ้ายังไม่มี
+        // 7) สร้าง Lead ถ้ายังไม่มี
         const activeLead = await Lead.findOne({
           where: { customer_id: customer.id, status: ['new', 'awaiting_details', 'awaiting_photos', 'awaiting_shipment'] }
         })
         if (!activeLead) {
           const lead = await Lead.create({ customer_id: customer.id, status: 'new' })
-          // Attribution
           const referral = event.referral || event.postback?.referral || event.message?.referral || null
           if (referral) {
             const ref = referral.ref || ''
@@ -172,32 +172,13 @@ const handleMessenger = async (req, res) => {
           }
         }
 
-        // 7) Forward ไป n8n พร้อมข้อมูลลูกค้า
-        const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/messenger-ai'
-        const enrichedBody = {
-          ...body,
-          _customer: {
-            id: customer.id,
-            psid: senderPsid,
-            facebook_name: customer.facebook_name || '',
-            name: customer.name || '',
-            phone: extracted.phone || customer.phone || '',
-            province: extracted.province || customer.province || '',
-            is_new: isNewCustomer,
-            order_count: orderCount,
-            latest_order: latestOrder ? {
-              order_number: latestOrder.order_number,
-              status: latestOrder.status,
-              hat_count: latestOrder.hat_count
-            } : null
-          }
-        }
-
-        try {
-          await axios.post(n8nWebhookUrl, enrichedBody, { timeout: 15000 })
-          console.log('Forwarded to n8n:', customer.facebook_name || senderPsid)
-        } catch (err) {
-          console.error('n8n forward failed:', err.message)
+        // 8) ใช้ Claude AI ตอบลูกค้า (ส่ง pageConfig ไปด้วย)
+        if (messageText && messageText.length > 0 && messageType === 'text') {
+          await claudeService.handleMessage(senderPsid, messageText, customer, thread, isNewCustomer, pageConfig)
+        } else if (messageType === 'like') {
+          await claudeService.sendToMessenger(senderPsid, '👍😊', pageConfig)
+        } else if (messageType === 'image') {
+          await claudeService.sendToMessenger(senderPsid, 'ได้รับรูปภาพแล้วครับ ขอตรวจสอบสักครู่นะครับ 🔍', pageConfig)
         }
 
       } catch (err) {
@@ -222,7 +203,7 @@ async function extractCustomerInfo(text) {
             role: 'system',
             content: `สกัดข้อมูลจากข้อความลูกค้าภาษาไทย ตอบเป็น JSON เท่านั้น:
 {"province":null,"hat_count":null,"needs_washing":null,"phone":null,"name":null,"tracking_number":null,"courier":null}
-- province: ชื่อจังหวัดภาษาไทย (แก้คำผิดให้ถูก เช่น สุราษฐานี→สุราษฎร์ธานี, กรุงเทพครั→กรุงเทพ)
+- province: ชื่อจังหวัดภาษาไทย (แก้คำผิดให้ถูก เช่น สุราษฐานี→สุราษฎร์ธานี)
 - hat_count: จำนวนหมวก (ตัวเลข)
 - needs_washing: ต้องการซักไหม (true/false)
 - phone: เบอร์โทร
@@ -244,7 +225,6 @@ async function extractCustomerInfo(text) {
     )
 
     const parsed = JSON.parse(response.data.choices[0].message.content)
-    // ลบ null values
     return Object.fromEntries(Object.entries(parsed).filter(([_, v]) => v !== null && v !== undefined))
   } catch (err) {
     console.error('Extract info error:', err.message)
@@ -252,105 +232,9 @@ async function extractCustomerInfo(text) {
   }
 }
 
-// n8n → Backend: รับข้อมูลที่ n8n ประมวลผลแล้ว
+// n8n endpoint (deprecated — เก็บไว้เผื่อ fallback)
 const handleN8n = async (req, res) => {
-  try {
-    const { type, data } = req.body
-
-    switch (type) {
-      case 'save_reply': {
-        // บันทึก AI reply + อัพเดทข้อมูลลูกค้า
-        let customer = await Customer.findOne({ where: { facebook_psid: data.psid } })
-        if (!customer) return res.status(404).json({ message: 'Customer not found' })
-
-        // บันทึกข้อความ AI ขาออก
-        let thread = await ConversationThread.findOne({
-          where: { customer_id: customer.id, platform: 'messenger' }
-        })
-        if (thread && data.ai_reply) {
-          await ConversationMessage.create({
-            thread_id: thread.id, direction: 'outbound', content: data.ai_reply
-          })
-        }
-
-        // อัพเดทข้อมูลลูกค้า
-        const updates = {}
-        if (data.province) updates.province = data.province
-        if (data.phone) updates.phone = data.phone
-        if (data.customer_name) updates.name = data.customer_name
-        if (Object.keys(updates).length > 0) await customer.update(updates)
-
-        // อัพเดท Lead
-        if (data.province || data.hat_count) {
-          const lead = await Lead.findOne({
-            where: { customer_id: customer.id, status: ['new', 'awaiting_details', 'awaiting_photos', 'awaiting_shipment'] },
-            order: [['createdAt', 'DESC']]
-          })
-          if (lead) {
-            const lu = {}
-            if (data.province) lu.province = data.province
-            if (data.hat_count) lu.hat_count = data.hat_count
-            if (data.needs_washing !== undefined) lu.needs_washing = data.needs_washing
-            if (Object.keys(lu).length > 0) await lead.update(lu)
-          }
-        }
-
-        // บันทึกเลขพัสดุ
-        if (data.tracking_number) {
-          const lead = await Lead.findOne({
-            where: { customer_id: customer.id, status: ['new', 'awaiting_details', 'awaiting_photos', 'awaiting_shipment'] },
-            order: [['createdAt', 'DESC']]
-          })
-          if (lead) {
-            await lead.update({ status: 'awaiting_shipment' })
-            const order = await Order.findOne({ where: { lead_id: lead.id } })
-            if (order) {
-              await Shipment.create({
-                order_id: order.id, direction: 'inbound',
-                courier: data.courier || '', tracking_number: data.tracking_number,
-                status: 'shipped', shipped_at: new Date()
-              })
-              await order.update({ status: 'inbound_shipped', inbound_tracking: data.tracking_number })
-            }
-          }
-        }
-
-        return res.json({ success: true })
-      }
-
-      case 'new_lead': {
-        let customer = await Customer.findOne({ where: { facebook_psid: data.psid } })
-        if (!customer) {
-          customer = await Customer.create({
-            facebook_psid: data.psid, facebook_name: data.facebook_name || '',
-            name: data.facebook_name || '', province: data.province || null
-          })
-        }
-        const lead = await Lead.create({
-          customer_id: customer.id, status: 'new',
-          hat_count: data.hat_count || null, province: data.province || null
-        })
-        return res.json({ success: true, customer_id: customer.id, lead_id: lead.id })
-      }
-
-      case 'update_customer': {
-        const customer = await Customer.findOne({ where: { facebook_psid: data.psid } })
-        if (!customer) return res.status(404).json({ message: 'Customer not found' })
-        const updates = {}
-        if (data.province) updates.province = data.province
-        if (data.phone) updates.phone = data.phone
-        if (data.name) updates.name = data.name
-        if (Object.keys(updates).length > 0) await customer.update(updates)
-        return res.json({ success: true })
-      }
-
-      default:
-        return res.json({ success: true })
-    }
-  } catch (err) {
-    console.error('n8n webhook error:', err)
-    res.status(500).json({ message: err.message })
-  }
+  res.json({ success: true, message: 'n8n endpoint deprecated — using Claude directly' })
 }
 
 module.exports = { verifyMessenger, handleMessenger, handleN8n }

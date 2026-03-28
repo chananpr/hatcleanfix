@@ -50,8 +50,8 @@ export const users = {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export const dashboard = {
-  summary: () => client.get('/api/dashboard/summary').then((r) => r.data),
-  orderStats: () => client.get('/api/dashboard/order-stats').then((r) => r.data),
+  summary: (params) => client.get('/api/dashboard/summary', { params }).then((r) => r.data),
+  orderStats: (params) => client.get('/api/dashboard/order-stats', { params }).then((r) => r.data),
   revenue: (params) => client.get('/api/dashboard/revenue', { params }).then((r) => r.data),
   attribution: (params) =>
     client.get('/api/dashboard/attribution', { params }).then((r) => r.data),
@@ -59,10 +59,10 @@ export const dashboard = {
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 export const pricing = {
-  list: () => client.get('/api/pricing').then((r) => r.data),
-  update: (data) => client.put('/api/pricing', data).then((r) => r.data),
+  getRules: () => client.get("/api/pricing/rules").then((r) => r.data),
+  updateRules: (data) => client.put("/api/pricing/rules", data).then((r) => r.data),
+  calculate: (data) => client.post("/api/pricing/calculate", data).then((r) => r.data),
 }
-
 // ─── Content ──────────────────────────────────────────────────────────────────
 export const content = {
   portfolio: {
@@ -85,6 +85,25 @@ export const content = {
   },
 }
 
+// ─── n8n / Automation ────────────────────────────────────────────────────────
+export const n8n = {
+  getStatus: () => client.get('/api/n8n/status').then((r) => r.data),
+  getWorkflows: () => client.get('/api/n8n/workflows').then((r) => r.data),
+  getCredentials: () => client.get('/api/n8n/credentials').then((r) => r.data),
+  getExecutions: () => client.get('/api/n8n/executions').then((r) => r.data),
+}
+
+// ─── AI Chat ─────────────────────────────────────────────────────────────────
+export const aiChat = {
+  listThreads: () => client.get('/api/ai-chat/threads').then((r) => r.data),
+  createThread: () => client.post('/api/ai-chat/threads').then((r) => r.data),
+  getThread: (id) => client.get(`/api/ai-chat/threads/${id}`).then((r) => r.data),
+  updateThread: (id, title) => client.patch(`/api/ai-chat/threads/${id}`, { title }).then((r) => r.data),
+  deleteThread: (id) => client.delete(`/api/ai-chat/threads/${id}`).then((r) => r.data),
+  sendMessage: (id, data) => client.post(`/api/ai-chat/threads/${id}/messages`, data).then((r) => r.data),
+  regenerate: (id) => client.post(`/api/ai-chat/threads/${id}/regenerate`).then((r) => r.data),
+}
+
 // ─── LinkedIn Posts ──────────────────────────────────────────────────────────
 export const linkedinPosts = {
   list: () => client.get('/api/linkedin-posts').then((r) => r.data),
@@ -94,4 +113,34 @@ export const linkedinPosts = {
   updateStatus: (id, data) => client.patch('/api/linkedin-posts/' + id + '/status', data).then((r) => r.data),
   update: (id, data) => client.put('/api/linkedin-posts/' + id, data).then((r) => r.data),
   remove: (id) => client.delete('/api/linkedin-posts/' + id).then((r) => r.data),
+}
+
+// ─── Facebook Pages ──────────────────────────────────────────────────────────
+export const facebookPages = {
+  list: () => client.get('/api/facebook-pages').then((r) => r.data),
+  get: (id) => client.get(`/api/facebook-pages/${id}`).then((r) => r.data),
+  create: (data) => client.post('/api/facebook-pages', data).then((r) => r.data),
+  update: (id, data) => client.put(`/api/facebook-pages/${id}`, data).then((r) => r.data),
+  remove: (id) => client.delete(`/api/facebook-pages/${id}`).then((r) => r.data),
+  toggleAi: (id) => client.post(`/api/facebook-pages/${id}/toggle-ai`).then((r) => r.data),
+}
+
+// ─── Conversations (Messenger) ───────────────────────────────────────────────
+export const conversations = {
+  list: (pageId) => client.get('/api/conversations', { params: { page_id: pageId } }).then((r) => r.data),
+  getMessages: (threadId) => client.get(`/api/conversations/${threadId}/messages`).then((r) => r.data),
+  aiReply: (threadId) => client.post(`/api/conversations/${threadId}/ai-reply`).then((r) => r.data),
+  manualReply: (threadId, message) => client.post(`/api/conversations/${threadId}/manual-reply`, { message }).then((r) => r.data),
+}
+
+// ─── Products ─────────────────────────────────────────────────────────────────
+export const products = {
+  list: (pageId) => client.get('/api/products', { params: { page_id: pageId } }).then(r => r.data),
+  get: (id) => client.get(`/api/products/${id}`).then(r => r.data),
+  create: (data) => client.post('/api/products', data).then(r => r.data),
+  update: (id, data) => client.put(`/api/products/${id}`, data).then(r => r.data),
+  remove: (id) => client.delete(`/api/products/${id}`).then(r => r.data),
+  toggle: (id) => client.post(`/api/products/${id}/toggle`).then(r => r.data),
+  uploadImage: (id, formData) => client.post(`/api/products/${id}/images`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  removeImage: (id, imageKey) => client.post(`/api/products/${id}/delete-image`, { imageKey }).then(r => r.data),
 }

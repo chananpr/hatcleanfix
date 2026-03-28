@@ -190,7 +190,8 @@ const ConversationThread = sequelize.define('ConversationThread', {
   id:                 { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   customer_id:        { type: DataTypes.INTEGER },
   platform:           { type: DataTypes.STRING, defaultValue: 'messenger' },
-  platform_thread_id: { type: DataTypes.STRING }
+  platform_thread_id: { type: DataTypes.STRING },
+  page_id:            { type: DataTypes.STRING(50) }
 }, { tableName: 'conversation_threads' })
 
 const ConversationMessage = sequelize.define('ConversationMessage', {
@@ -216,6 +217,50 @@ const LinkedInPost = sequelize.define('LinkedInPost', {
   created_by:  { type: DataTypes.INTEGER },
 }, { tableName: 'linkedin_posts' })
 
+
+// ====== FACEBOOK PAGES (Multi-page support) ======
+
+const FacebookPage = sequelize.define('FacebookPage', {
+  id:                   { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  page_id:              { type: DataTypes.STRING(50), unique: true, allowNull: false },
+  page_name:            { type: DataTypes.STRING },
+  access_token:         { type: DataTypes.TEXT, allowNull: false },
+  is_active:            { type: DataTypes.BOOLEAN, defaultValue: true },
+  ai_enabled:           { type: DataTypes.BOOLEAN, defaultValue: true },
+  ai_persona:           { type: DataTypes.STRING(100), defaultValue: 'น้องแฮทซ์' },
+  ai_system_prompt:     { type: DataTypes.TEXT },
+  webhook_verify_token: { type: DataTypes.STRING(100), defaultValue: 'hatfixclean2026' },
+  note:                 { type: DataTypes.TEXT },
+  profile_picture_url:  { type: DataTypes.STRING(500) }
+}, { tableName: 'facebook_pages' })
+
+// ====== AI CHAT ======
+
+const AiChatThread = sequelize.define('AiChatThread', {
+  id:                { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id:           { type: DataTypes.INTEGER, allowNull: false },
+  title:             { type: DataTypes.STRING, defaultValue: 'แชทใหม่' },
+  claude_session_id: { type: DataTypes.STRING },
+  is_archived:       { type: DataTypes.BOOLEAN, defaultValue: false }
+}, { tableName: 'ai_chat_threads' })
+
+const AiChatMessage = sequelize.define('AiChatMessage', {
+  id:        { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  thread_id: { type: DataTypes.INTEGER, allowNull: false },
+  role:      { type: DataTypes.ENUM('user', 'assistant'), allowNull: false },
+  content:   { type: DataTypes.TEXT('long') }
+}, { tableName: 'ai_chat_messages' })
+
+const AiChatAttachment = sequelize.define('AiChatAttachment', {
+  id:            { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  message_id:    { type: DataTypes.INTEGER, allowNull: false },
+  original_name: { type: DataTypes.STRING },
+  stored_path:   { type: DataTypes.STRING },
+  file_type:     { type: DataTypes.STRING },
+  mime_type:     { type: DataTypes.STRING },
+  file_size:     { type: DataTypes.INTEGER }
+}, { tableName: 'ai_chat_attachments' })
+
 // ====== ASSOCIATIONS ======
 
 Role.belongsToMany(Permission, { through: RolePermission, foreignKey: 'role_id' })
@@ -240,7 +285,33 @@ Order.hasMany(Shipment,           { foreignKey: 'order_id' })
 Order.hasMany(Payment,            { foreignKey: 'order_id' })
 
 Customer.hasMany(ConversationThread,       { foreignKey: 'customer_id' })
+ConversationThread.belongsTo(Customer,     { foreignKey: 'customer_id' })
 ConversationThread.hasMany(ConversationMessage, { foreignKey: 'thread_id' })
+ConversationMessage.belongsTo(ConversationThread, { foreignKey: 'thread_id' })
+
+AiChatThread.belongsTo(User, { foreignKey: 'user_id' })
+AiChatThread.hasMany(AiChatMessage, { foreignKey: 'thread_id' })
+AiChatMessage.belongsTo(AiChatThread, { foreignKey: 'thread_id' })
+AiChatMessage.hasMany(AiChatAttachment, { foreignKey: 'message_id' })
+AiChatAttachment.belongsTo(AiChatMessage, { foreignKey: 'message_id' })
+
+
+// ==================== Product ====================
+const Product = sequelize.define("Product", {
+  name:        { type: DataTypes.STRING, allowNull: false },
+  slug:        { type: DataTypes.STRING, unique: true },
+  description: { type: DataTypes.TEXT },
+  category:    { type: DataTypes.STRING, defaultValue: "general" },
+  price:       { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
+  compare_price: { type: DataTypes.DECIMAL(10, 2) },
+  sku:         { type: DataTypes.STRING },
+  stock:       { type: DataTypes.INTEGER, defaultValue: 0 },
+  is_active:   { type: DataTypes.BOOLEAN, defaultValue: true },
+  images:      { type: DataTypes.JSON, defaultValue: [] },
+  options:     { type: DataTypes.JSON, defaultValue: {} },
+  sort_order:  { type: DataTypes.INTEGER, defaultValue: 0 },
+  page_id:    { type: DataTypes.STRING(50) },
+}, { tableName: "products", timestamps: true })
 
 module.exports = {
   sequelize,
@@ -251,5 +322,8 @@ module.exports = {
   Shipment, Payment,
   PortfolioItem, Testimonial, SiteSetting,
   ConversationThread, ConversationMessage,
-  LinkedInPost
+  LinkedInPost,
+  AiChatThread, AiChatMessage, AiChatAttachment,
+  FacebookPage,
+  Product
 }

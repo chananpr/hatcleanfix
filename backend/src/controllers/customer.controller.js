@@ -2,7 +2,7 @@ const { Customer, CustomerAddress, Lead, Order } = require('../models')
 
 const list = async (req, res) => {
   try {
-    const { search, page = 1, limit = 20 } = req.query
+    const { search, page = 1, limit = 20, page_id } = req.query
     const { Op } = require('sequelize')
     const where = {}
     if (search) {
@@ -12,6 +12,9 @@ const list = async (req, res) => {
         { facebook_name: { [Op.like]: `%${search}%` } }
       ]
     }
+    // TODO: add page_id column to Customer model, then uncomment:
+    // if (page_id) where.page_id = page_id
+
     const { count, rows } = await Customer.findAndCountAll({
       where,
       order: [['createdAt', 'DESC']],

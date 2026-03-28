@@ -4,10 +4,14 @@ const { sequelize } = require('../models')
 
 const summary = async (req, res) => {
   try {
+    const { page_id } = req.query
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const todayEnd = new Date()
     todayEnd.setHours(23, 59, 59, 999)
+
+    // TODO: add page_id column to Lead, Order, Customer, Payment models for proper filtering
+    // For now, page_id is accepted but not filtered until columns exist
 
     const [leadsToday, ordersToday, pendingOrders, inProgressOrders,
            awaitingPayment, readyToShip, revenueToday, revenueMonth] = await Promise.all([
@@ -38,6 +42,8 @@ const summary = async (req, res) => {
 
 const orderStats = async (req, res) => {
   try {
+    // TODO: add page_id filtering when column exists on Order model
+    const { page_id } = req.query
     const stats = await Order.findAll({
       attributes: ['status', [fn('COUNT', col('id')), 'count']],
       group: ['status'],
@@ -51,7 +57,8 @@ const orderStats = async (req, res) => {
 
 const revenue = async (req, res) => {
   try {
-    const { period = '7d' } = req.query
+    const { period = '7d', page_id } = req.query
+    // TODO: add page_id filtering when column exists on Payment model
     const days = period === '30d' ? 30 : period === '90d' ? 90 : 7
     const from = new Date()
     from.setDate(from.getDate() - days)
@@ -74,7 +81,7 @@ const revenue = async (req, res) => {
 
 const attribution = async (req, res) => {
   try {
-    const { date_from, date_to } = req.query
+    const { date_from, date_to, page_id } = req.query
 
     // สร้าง where clause สำหรับช่วงเวลา
     const dateWhere = {}
@@ -87,6 +94,8 @@ const attribution = async (req, res) => {
     const leadDateFilter = Object.keys(dateWhere).length > 0
       ? { '$Lead.createdAt$': dateWhere }
       : {}
+
+    // TODO: add page_id filtering to attribution queries when column exists
 
     // ดึงข้อมูล attribution พร้อม lead + order
     const campaigns = await sequelize.query(`

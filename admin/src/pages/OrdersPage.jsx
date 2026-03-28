@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { orders } from '../api/index.js'
+import { usePage } from '../contexts/PageContext.jsx'
 import StatusBadge from '../components/common/StatusBadge.jsx'
 import PageHeader from '../components/common/PageHeader.jsx'
 import { format } from 'date-fns'
@@ -24,14 +25,16 @@ const STATUS_TABS = [
 
 export default function OrdersPage() {
   const navigate = useNavigate()
+  const { selectedPage } = usePage()
   const [activeTab, setActiveTab] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['orders', activeTab, search, page],
+    queryKey: ['orders', activeTab, search, page, selectedPage?.page_id],
     queryFn: () =>
-      orders.list({ status: activeTab || undefined, search: search || undefined, page, limit: 20 }),
+      orders.list({ status: activeTab || undefined, search: search || undefined, page, limit: 20, page_id: selectedPage?.page_id }),
+    enabled: !!selectedPage?.page_id,
   })
 
   const formatDate = (d) => {
@@ -45,6 +48,17 @@ export default function OrdersPage() {
   const items = data?.data || data?.orders || []
   const total = data?.total || 0
   const totalPages = Math.ceil(total / 20) || 1
+
+  if (!selectedPage?.page_id) {
+    return (
+      <div>
+        <PageHeader title="จัดการออเดอร์" subtitle="" />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+          <p className="text-gray-400 text-lg">กรุณาเลือกเพจจากเมนูด้านบน</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>

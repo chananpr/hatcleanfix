@@ -35,6 +35,11 @@ app.use('/api/content',     require('./modules/content/content.routes'))
 app.use('/api/pricing',     require('./modules/pricing/pricing.routes'))
 app.use('/api/reports',     require('./modules/reports/report.routes'))
 app.use('/api/linkedin-posts', require('./modules/linkedin-post/linkedin-post.routes'))
+app.use('/api/n8n',            require('./modules/n8n/n8n.routes'))
+app.use('/api/ai-chat',        require('./modules/ai-chat/ai-chat.routes'))
+app.use('/api/facebook-pages', require('./modules/facebook-pages/facebook-pages.routes'))
+app.use('/api/products', require('./modules/products/products.routes'))
+app.use('/api/conversations', require('./modules/conversations/conversations.routes'))
 
 // 404
 app.use((req, res) => {
