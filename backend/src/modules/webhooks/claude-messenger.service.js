@@ -241,6 +241,169 @@ async function sendToMessenger(psid, text, pageConfig) {
 /**
  * จัดการข้อความจาก Messenger → Claude → ตอบกลับ
  */
+
+/**
+ * วิเคราะห์รูปภาพด้วย Claude Vision
+ * - นับจำนวนหมวก
+ * - อ่านเลขพัสดุจากบิล/ใบเสร็จ
+ * - จำแนกประเภทรูป (หมวก/บิลพัสดุ/สลิปโอนเงิน/อื่นๆ)
+ */
+async function analyzeImages(imageUrls, customer, thread, pageConfig) {
+  try {
+    const imageContents = imageUrls.map(url => ({
+      type: "image",
+      source: { type: "url", url }
+    }))
+
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1000,
+      system: `คุณเป็นผู้ช่วยวิเคราะห์รูปภาพสำหรับร้านซักหมวก Hat Fix & Clean
+ตอบเป็น JSON เท่านั้น ห้ามตอบข้อความอื่น
+
+วิเคราะห์รูปภาพและตอบในรูปแบบ JSON:
+{
+  "image_type": "hat" | "tracking_slip" | "payment_slip" | "other",
+  "hat_count": number | null,
+  "hat_details": [{"color": "", "type": "", "condition": ""}] | null,
+  "tracking_number": "string" | null,
+  "courier": "string" | null,
+  "amount": number | null,
+  "summary_th": "สรุปเป็นภาษาไทยสั้นๆ"
+}`,
+      messages: [{
+        role: "user",
+        content: [
+          ...imageContents,
+          { type: "text", text: "วิเคราะห์รูปภาพเหล่านี้ ตอบเป็น JSON เท่านั้น" }
+        ]
+      }]
+    })
+
+    const text = response.content[0].text
+    // Extract JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0])
+    }
+    return { image_type: "other", summary_th: text.substring(0, 200) }
+  } catch (err) {
+    console.error("[Vision] Error:", err.message)
+    return { image_type: "other", summary_th: "ไม่สามารถวิเคราะห์รูปได้" }
+  }
+}
+
+/**
+ * จัดการเมื่อลูกค้าส่งรูปมา
+ * - วิเคราะห์ด้วย Vision
+ * - ผูกกับ Order ที่เปิดอยู่
+ * - อัพเดท tracking / hat_count อัตโนมัติ
+ */
+async function handleImageMessage(senderPsid, imageUrls, customer, thread, pageConfig) {
+  try {
+    if (pageConfig && !pageConfig.ai_enabled) return
+
+    // Typing indicator
+    const accessToken = pageConfig ? pageConfig.access_token : process.env.FB_PAGE_ACCESS_TOKEN
+    await axios.post("https://graph.facebook.com/v19.0/me/messages", {
+      recipient: { id: senderPsid },
+      sender_action: "typing_on"
+    }, { params: { access_token: accessToken } }).catch(() => {})
+
+    // วิเคราะห์รูป
+    const analysis = await analyzeImages(imageUrls, customer, thread, pageConfig)
+    console.log("[Vision] Analysis:", JSON.stringify(analysis))
+
+    // บันทึกผลวิเคราะห์
+    await ConversationMessage.create({
+      thread_id: thread.id,
+      direction: "system",
+      content: JSON.stringify(analysis),
+      ai_extracted: { type: "vision_analysis", ...analysis, image_urls: imageUrls }
+    })
+
+    // หา Order ที่เปิดอยู่
+    const { Order, OrderImage } = require("../../models")
+    const activeOrder = await Order.findOne({
+      where: { customer_id: customer.id, status: ["draft","awaiting_inbound_shipment","inbound_shipped","received","in_progress"] },
+      order: [["createdAt", "DESC"]]
+    })
+
+    let replyText = ""
+
+    if (analysis.image_type === "hat") {
+      // รูปหมวก → บันทึกเข้า Order + นับจำนวน
+      if (activeOrder) {
+        // Save images to order
+        for (const url of imageUrls) {
+          await OrderImage.create({ order_id: activeOrder.id, url, image_type: "before", note: analysis.summary_th })
+        }
+        // Update hat count if detected
+        if (analysis.hat_count && analysis.hat_count > 0) {
+          await activeOrder.update({ hat_count: analysis.hat_count })
+        }
+        replyText = `ได้รับรูปหมวกแล้วครับ 🧢`
+        if (analysis.hat_count) replyText += `\nนับได้ ${analysis.hat_count} ใบ`
+        if (analysis.hat_details && analysis.hat_details.length > 0) {
+          replyText += "\n" + analysis.hat_details.map((h, i) => `${i+1}. ${h.type || "หมวก"} สี${h.color || "?"}`).join("\n")
+        }
+        replyText += `\nบันทึกเข้าออเดอร์ #${activeOrder.order_number} แล้วครับ ✅`
+      } else {
+        replyText = `ได้รับรูปหมวกแล้วครับ 🧢`
+        if (analysis.hat_count) replyText += ` นับได้ ${analysis.hat_count} ใบ`
+        replyText += "\nต้องการใช้บริการอะไรครับ? (ซัก / ดัดทรง / ซ่อม)"
+      }
+
+    } else if (analysis.image_type === "tracking_slip") {
+      // บิลพัสดุ → อ่านเลขพัสดุ + อัพเดท Order
+      if (analysis.tracking_number && activeOrder) {
+        await activeOrder.update({
+          inbound_tracking: analysis.tracking_number,
+          inbound_carrier: analysis.courier || null,
+          status: activeOrder.status === "awaiting_inbound_shipment" ? "inbound_shipped" : activeOrder.status
+        })
+        replyText = `ได้รับเลขพัสดุแล้วครับ 📦\nเลขพัสดุ: ${analysis.tracking_number}`
+        if (analysis.courier) replyText += `\nขนส่ง: ${analysis.courier}`
+        replyText += `\nอัพเดทออเดอร์ #${activeOrder.order_number} แล้วครับ ✅\nเมื่อร้านได้รับหมวกจะแจ้งให้ทราบครับ 😊`
+      } else if (analysis.tracking_number) {
+        replyText = `ได้รับเลขพัสดุแล้วครับ: ${analysis.tracking_number}\nแต่ยังไม่มีออเดอร์ที่เปิดอยู่ ต้องการสร้างออเดอร์ก่อนไหมครับ?`
+      } else {
+        replyText = "ได้รับรูปแล้วครับ แต่อ่านเลขพัสดุไม่ชัด กรุณาส่งรูปที่ชัดกว่านี้หรือพิมพ์เลขพัสดุมาได้เลยครับ 📸"
+      }
+
+    } else if (analysis.image_type === "payment_slip") {
+      // สลิปโอนเงิน → บันทึกเข้า Order
+      if (activeOrder) {
+        await OrderImage.create({ order_id: activeOrder.id, url: imageUrls[0], image_type: "payment", note: "สลิปโอนเงิน" })
+        replyText = "ได้รับสลิปการโอนแล้วครับ 💰 กำลังตรวจสอบ..."
+        if (analysis.amount) replyText += `\nยอดที่โอน: ${analysis.amount} บาท`
+        replyText += "\nรอแอดมินยืนยันสักครู่นะครับ ✅"
+      } else {
+        replyText = "ได้รับสลิปแล้วครับ แต่ยังไม่มีออเดอร์ที่ต้องชำระ กรุณาติดต่อแอดมินครับ 🙏"
+      }
+
+    } else {
+      replyText = analysis.summary_th || "ได้รับรูปแล้วครับ มีอะไรให้ช่วยเพิ่มเติมไหมครับ? 😊"
+    }
+
+    // ส่งตอบ
+    await sendToMessenger(senderPsid, replyText, pageConfig)
+
+    // บันทึกข้อความ AI ขาออก
+    await ConversationMessage.create({
+      thread_id: thread.id,
+      direction: "outbound",
+      content: replyText
+    })
+
+    console.log("[Vision] Replied:", replyText.substring(0, 80))
+
+  } catch (err) {
+    console.error("[Vision] Error:", err.message)
+    await sendToMessenger(senderPsid, "ได้รับรูปแล้วครับ ขอตรวจสอบสักครู่นะครับ 🔍", pageConfig).catch(() => {})
+  }
+}
+
 async function handleMessage(senderPsid, messageText, customer, thread, isNewCustomer, pageConfig) {
   try {
     // ถ้า AI ปิดอยู่ → ไม่ตอบ
@@ -287,4 +450,4 @@ function clearPageCache() {
 }
 
 function getDefaultPrompt() { return DEFAULT_SYSTEM_PROMPT }
-module.exports = { handleMessage, generateReply, sendToMessenger, getPageConfig, clearPageCache, getDefaultPrompt }
+module.exports = { handleMessage, handleImageMessage, generateReply, analyzeImages, sendToMessenger, getPageConfig, clearPageCache, getDefaultPrompt }

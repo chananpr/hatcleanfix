@@ -177,8 +177,8 @@ const handleMessenger = async (req, res) => {
           await claudeService.handleMessage(senderPsid, messageText, customer, thread, isNewCustomer, pageConfig)
         } else if (messageType === 'like') {
           await claudeService.sendToMessenger(senderPsid, '👍😊', pageConfig)
-        } else if (messageType === 'image') {
-          await claudeService.sendToMessenger(senderPsid, 'ได้รับรูปภาพแล้วครับ ขอตรวจสอบสักครู่นะครับ 🔍', pageConfig)
+        } else if (messageType === 'image' && imageUrls.length > 0) {
+          await claudeService.handleImageMessage(senderPsid, imageUrls, customer, thread, pageConfig)
         }
 
       } catch (err) {
