@@ -102,7 +102,11 @@ const Order = sequelize.define('Order', {
   payment_status:    { type: DataTypes.ENUM('unpaid','partial','paid'), defaultValue: 'unpaid' },
   note:              { type: DataTypes.TEXT },
   inbound_tracking:  { type: DataTypes.STRING },
-  outbound_tracking: { type: DataTypes.STRING }
+  outbound_tracking: { type: DataTypes.STRING },
+  delivery_method:   { type: DataTypes.ENUM("pickup","postal"), defaultValue: "postal" },
+  inbound_carrier:   { type: DataTypes.STRING },
+  outbound_carrier:  { type: DataTypes.STRING },
+  page_id:           { type: DataTypes.STRING }
 }, { tableName: 'orders' })
 
 const OrderItem = sequelize.define('OrderItem', {

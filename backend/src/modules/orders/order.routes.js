@@ -12,4 +12,6 @@ router.put('/:id/status', ctrl.updateStatus)
 router.patch('/:id/status', ctrl.updateStatus)
 router.post('/:id/images', uploadOrderImages, ctrl.uploadImages)
 
+router.put("/:id/tracking", ctrl.updateTracking)
+router.post("/:id/typed-images", uploadOrderImages, ctrl.uploadTypedImages)
 module.exports = router
