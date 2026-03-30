@@ -1,5 +1,6 @@
 const axios = require('axios')
-const {
+const { User,
+ 
   Customer, Lead, LeadAttribution, Order, Shipment,
   ConversationThread, ConversationMessage
 } = require('../../models')
@@ -172,7 +173,19 @@ const handleMessenger = async (req, res) => {
           }
         }
 
-        // 8) ใช้ Claude AI ตอบลูกค้า (ส่ง pageConfig ไปด้วย)
+        // 8) เช็ค test_mode — ถ้าเปิดอยู่ ตอบเฉพาะ tester เท่านั้น
+        let shouldReply = true
+        if (pageConfig.test_mode) {
+          const tester = await User.findOne({ where: { facebook_psid: senderPsid, is_tester: true } })
+          if (!tester) {
+            shouldReply = false
+            console.log("[Test Mode] Skipping reply — sender", senderPsid, "is not a tester")
+          } else {
+            console.log("[Test Mode] Replying to tester:", tester.name)
+          }
+        }
+
+        // 9) ใช้ Claude AI ตอบลูกค้า (ส่ง pageConfig ไปด้วย)
         if (messageText && messageText.length > 0 && messageType === 'text') {
           await claudeService.handleMessage(senderPsid, messageText, customer, thread, isNewCustomer, pageConfig)
         } else if (messageType === 'like') {

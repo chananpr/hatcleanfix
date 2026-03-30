@@ -61,7 +61,7 @@ function PreviewChat({ personaName }) {
 export default function AiSettingsPage() {
   const { selectedPage } = usePage()
 
-  const [aiEnabled, setAiEnabled] = useState(false)
+  const [aiMode, setAiMode] = useState("off")
   const [personaName, setPersonaName] = useState("")
   const [systemPrompt, setSystemPrompt] = useState("")
   const [saving, setSaving] = useState(false)
@@ -76,7 +76,7 @@ export default function AiSettingsPage() {
       setLoading(true)
       const res = await facebookPages.get(selectedPage.id)
       const page = res.data || res
-      setAiEnabled(!!page.ai_enabled)
+      setAiMode(page.ai_mode || "off")
       setPersonaName(page.ai_persona || page.ai_persona_name || "")
       setSystemPrompt(page.ai_system_prompt || page.system_prompt || "")
       setUsingDefault(!!page.using_default_prompt)
@@ -89,13 +89,13 @@ export default function AiSettingsPage() {
 
   useEffect(() => { loadSettings() }, [loadSettings])
 
-  const handleToggle = async () => {
+  const handleModeChange = async (mode) => {
     if (!selectedPage?.id) return
     try {
-      const res = await facebookPages.toggleAi(selectedPage.id)
+      const res = await facebookPages.setAiMode(selectedPage.id, mode)
       const updated = res.data || res
-      setAiEnabled(!!updated.ai_enabled)
-    } catch (err) { console.error("Toggle failed:", err) }
+      setAiMode(updated.ai_mode || mode)
+    } catch (err) { console.error("Mode change failed:", err) }
   }
 
   const handleSave = async () => {
@@ -151,12 +151,12 @@ export default function AiSettingsPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-            aiEnabled
-              ? "bg-green-500/10 text-green-400 border border-green-500/30"
+            aiMode === "live" ? "bg-green-500/10 text-green-400 border border-green-500/30"
+              : aiMode === "test" ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
               : "bg-gray-700 text-gray-400 border border-gray-600"
           }`}>
-            <span className={`w-2 h-2 rounded-full ${aiEnabled ? "bg-green-400 animate-pulse" : "bg-gray-500"}`} />
-            {aiEnabled ? "AI เปิดใช้งาน" : "AI ปิดอยู่"}
+            <span className={`w-2 h-2 rounded-full ${aiMode !== "off" ? "bg-green-400 animate-pulse" : "bg-gray-500"}`} />
+            {aiMode === "live" ? "ใช้งานจริง" : aiMode === "test" ? "ทดสอบ" : "ปิดอยู่"}
           </span>
         </div>
       </div>
@@ -171,17 +171,17 @@ export default function AiSettingsPage() {
             <div>
               <h3 className="text-base font-semibold text-white">AI ตอบกลับอัตโนมัติ</h3>
               <p className="text-sm text-gray-400 mt-0.5">
-                {aiEnabled
+                {aiMode !== "off"
                   ? "AI จะตอบลูกค้าอัตโนมัติใน Messenger เมื่อมีข้อความเข้า"
                   : "ข้อความจะไม่ถูกตอบอัตโนมัติ — ต้องตอบเองจากหน้า Messenger"}
               </p>
             </div>
           </div>
-          <ToggleSwitch enabled={aiEnabled} onToggle={handleToggle} />
+          
         </div>
 
         {/* Status indicator */}
-        {aiEnabled && (
+        {aiMode !== "off" && (
           <div className="mt-4 bg-green-500/5 border border-green-500/20 rounded-xl p-3 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
               <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>

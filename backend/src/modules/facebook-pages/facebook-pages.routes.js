@@ -9,7 +9,6 @@ router.get('/:id', ctrl.getOne)
 router.post('/', ctrl.create)
 router.put('/:id', ctrl.update)
 router.delete('/:id', ctrl.remove)
-router.post("/:id/toggle-ai", ctrl.toggleAi)
-router.post("/:id/refresh-avatar", ctrl.refreshAvatar)
+router.post("/:id/ai-mode", ctrl.setAiMode)
 
 module.exports = router

@@ -27,7 +27,11 @@ const User = sequelize.define('User', {
   password:   { type: DataTypes.STRING, allowNull: false },
   role_id:    { type: DataTypes.INTEGER, defaultValue: 3 }, // default: staff
   is_active:  { type: DataTypes.BOOLEAN, defaultValue: true },
-  last_login: { type: DataTypes.DATE }
+  last_login: { type: DataTypes.DATE },
+  facebook_psid: { type: DataTypes.STRING },
+  is_tester:     { type: DataTypes.BOOLEAN, defaultValue: false },
+  facebook_name: { type: DataTypes.STRING },
+  facebook_picture: { type: DataTypes.STRING(500) }
 }, { tableName: 'users' })
 
 // ====== CUSTOMERS ======
@@ -230,12 +234,12 @@ const FacebookPage = sequelize.define('FacebookPage', {
   page_name:            { type: DataTypes.STRING },
   access_token:         { type: DataTypes.TEXT, allowNull: false },
   is_active:            { type: DataTypes.BOOLEAN, defaultValue: true },
-  ai_enabled:           { type: DataTypes.BOOLEAN, defaultValue: true },
+  ai_mode:              { type: DataTypes.ENUM("off", "test", "live"), defaultValue: "test" },
   ai_persona:           { type: DataTypes.STRING(100), defaultValue: 'น้องแฮทซ์' },
   ai_system_prompt:     { type: DataTypes.TEXT },
   webhook_verify_token: { type: DataTypes.STRING(100), defaultValue: 'hatfixclean2026' },
   note:                 { type: DataTypes.TEXT },
-  profile_picture_url:  { type: DataTypes.STRING(500) }
+  profile_picture_url:  { type: DataTypes.STRING(500) },
 }, { tableName: 'facebook_pages' })
 
 // ====== AI CHAT ======

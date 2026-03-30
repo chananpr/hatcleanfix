@@ -1,359 +1,448 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
-import useAuthStore from '../stores/auth.store.js'
+import { useState, useEffect, useCallback } from "react"
+import useAuth from "../hooks/useAuth.js"
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.hatfixclean.com'
+const API = "https://api.hatfixclean.com"
+const FB_APP_ID = "1482154660268433"
 
-const ROLE_LABELS = {
-  superadmin: 'Super Admin',
-  admin: 'Admin',
-  staff: 'Staff',
-  viewer: 'Viewer',
+const ROLE_MAP = {
+  superadmin: { label: "ซูเปอร์แอดมิน", color: "bg-purple-500/10 text-purple-400 border-purple-500/30" },
+  admin: { label: "แอดมิน", color: "bg-blue-500/10 text-blue-400 border-blue-500/30" },
+  staff: { label: "พนักงาน", color: "bg-green-500/10 text-green-400 border-green-500/30" },
+  viewer: { label: "ผู้ดู", color: "bg-gray-500/10 text-gray-400 border-gray-500/30" },
 }
 
-const ROLE_COLORS = {
-  superadmin: 'bg-purple-100 text-purple-700 border-purple-200',
-  admin: 'bg-blue-100 text-blue-700 border-blue-200',
-  staff: 'bg-green-100 text-green-700 border-green-200',
-  viewer: 'bg-gray-100 text-gray-600 border-gray-200',
+function loadFbSdk() {
+  return new Promise((resolve) => {
+    if (window.FB) return resolve(window.FB)
+    window.fbAsyncInit = function () {
+      window.FB.init({ appId: FB_APP_ID, cookie: true, xfbml: false, version: "v19.0" })
+      resolve(window.FB)
+    }
+    if (!document.getElementById("facebook-jssdk")) {
+      const s = document.createElement("script")
+      s.id = "facebook-jssdk"
+      s.src = "https://connect.facebook.net/th_TH/sdk.js"
+      s.async = true
+      s.defer = true
+      document.head.appendChild(s)
+    }
+  })
 }
 
 export default function ProfilePage() {
-  const { token, setUser } = useAuthStore()
+  const { token } = useAuth()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState("")
+  const [error, setError] = useState("")
 
-  // Password change
-  const [showPasswordForm, setShowPasswordForm] = useState(false)
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [passwordError, setPasswordError] = useState('')
-  const [passwordSuccess, setPasswordSuccess] = useState('')
-  const [savingPassword, setSavingPassword] = useState(false)
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [showPw, setShowPw] = useState(false)
+  const [curPw, setCurPw] = useState("")
+  const [newPw, setNewPw] = useState("")
 
-  // Show/hide password
-  const [showPlainPassword, setShowPlainPassword] = useState(false)
+  // Facebook login state
+  const [fbLoading, setFbLoading] = useState(false)
+  const [fbConfirm, setFbConfirm] = useState(null) // { id, name, picture }
 
-  // Edit name
-  const [editingName, setEditingName] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [savingName, setSavingName] = useState(false)
-
-  const headers = { Authorization: `Bearer ${token}` }
-
-  const fetchProfile = async () => {
-    try {
-      setLoading(true)
-      const res = await axios.get(`${API_URL}/api/users/me/profile`, { headers })
-      setProfile(res.data)
-      setNewName(res.data.name || '')
-    } catch (err) {
-      setError(err.response?.data?.message || 'ไม่สามารถโหลดข้อมูลโปรไฟล์ได้')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const headers = { Authorization: "Bearer " + token, "Content-Type": "application/json" }
 
   useEffect(() => {
-    fetchProfile()
+    fetch(API + "/api/users/me/profile", { headers: { Authorization: "Bearer " + token } })
+      .then((r) => r.json())
+      .then((d) => {
+        const u = d.data || d
+        setProfile(u)
+        setName(u.name || "")
+        setEmail(u.email || "")
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [token])
+
+  // Load FB SDK on mount
+  useEffect(() => {
+    loadFbSdk()
   }, [])
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault()
-    setPasswordError('')
-    setPasswordSuccess('')
+  const showSuccess = useCallback((msg) => {
+    setSaved(msg)
+    setTimeout(() => setSaved(""), 3000)
+  }, [])
 
-    if (newPassword.length < 6) {
-      setPasswordError('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร')
-      return
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError('รหัสผ่านไม่ตรงกัน')
-      return
-    }
-
+  // --- Profile save ---
+  const saveProfile = async () => {
+    setSaving(true)
+    setSaved("")
     try {
-      setSavingPassword(true)
-      await axios.put(`${API_URL}/api/users/me/password`, { newPassword }, { headers })
-      setPasswordSuccess('เปลี่ยนรหัสผ่านสำเร็จ!')
-      setNewPassword('')
-      setConfirmPassword('')
-      setShowPasswordForm(false)
-      // Refresh profile to get updated plain_password
-      fetchProfile()
-    } catch (err) {
-      setPasswordError(err.response?.data?.message || 'ไม่สามารถเปลี่ยนรหัสผ่านได้')
+      const res = await fetch(API + "/api/users/me/profile", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ name, email }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        throw new Error(d.message || "บันทึกไม่สำเร็จ")
+      }
+      showSuccess("บันทึกข้อมูลเรียบร้อย")
+    } catch (e) {
+      setError(e.message)
     } finally {
-      setSavingPassword(false)
+      setSaving(false)
     }
   }
 
-  const handleUpdateName = async () => {
-    if (!newName.trim()) return
+  // --- Password change ---
+  const changePassword = async () => {
+    if (!curPw || !newPw) return setError("กรุณากรอกรหัสผ่านทั้ง 2 ช่อง")
+    setSaving(true)
     try {
-      setSavingName(true)
-      await axios.put(`${API_URL}/api/users/me/profile`, { name: newName.trim() }, { headers })
-      setProfile((prev) => ({ ...prev, name: newName.trim() }))
-      // Update auth store so sidebar reflects new name
-      setUser({ ...useAuthStore.getState().user, name: newName.trim() })
-      setEditingName(false)
-    } catch (err) {
-      setError(err.response?.data?.message || 'ไม่สามารถแก้ไขชื่อได้')
+      const res = await fetch(API + "/api/users/me/password", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ current_password: curPw, new_password: newPw }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.message)
+      setCurPw("")
+      setNewPw("")
+      setShowPw(false)
+      showSuccess("เปลี่ยนรหัสผ่านเรียบร้อย")
+    } catch (e) {
+      setError(e.message)
     } finally {
-      setSavingName(false)
+      setSaving(false)
     }
   }
 
-  if (loading) {
+  // --- Facebook Login via SDK popup ---
+  const handleFbLogin = async () => {
+    setFbLoading(true)
+    setError("")
+    try {
+      const FB = await loadFbSdk()
+      FB.login(
+        (loginRes) => {
+          if (loginRes.authResponse) {
+            FB.api("/me", { fields: "id,name,picture.width(200)" }, (me) => {
+              if (me && !me.error) {
+                setFbConfirm({
+                  id: me.id,
+                  name: me.name,
+                  picture: me.picture?.data?.url || null,
+                })
+              } else {
+                setError("ไม่สามารถดึงข้อมูล Facebook ได้")
+              }
+              setFbLoading(false)
+            })
+          } else {
+            setFbLoading(false)
+          }
+        },
+        { scope: "public_profile" }
+      )
+    } catch (e) {
+      setError("ไม่สามารถเชื่อมต่อ Facebook SDK ได้")
+      setFbLoading(false)
+    }
+  }
+
+  // --- Confirm Facebook link ---
+  const confirmFbLink = async () => {
+    if (!fbConfirm) return
+    setSaving(true)
+    try {
+      const res = await fetch(API + "/api/users/me/facebook", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ facebook_psid: fbConfirm.id }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.message || "เชื่อมต่อไม่สำเร็จ")
+      setProfile((prev) => ({ ...prev, facebook_psid: fbConfirm.id, is_tester: true }))
+      setFbConfirm(null)
+      showSuccess("เชื่อมต่อ Facebook สำเร็จ!")
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // --- Unlink Facebook ---
+  const unlinkFb = async () => {
+    setSaving(true)
+    try {
+      await fetch(API + "/api/users/me/facebook", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ facebook_psid: null }),
+      })
+      setProfile((prev) => ({ ...prev, facebook_psid: null, is_tester: false }))
+      showSuccess("ยกเลิกการเชื่อมต่อแล้ว")
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // --- Render ---
+  if (loading)
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
-          <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          กำลังโหลด...
-        </div>
+      <div className="flex items-center justify-center py-32">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-600 border-t-red-500" />
       </div>
     )
-  }
 
-  if (error && !profile) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="text-red-500 text-lg mb-2">เกิดข้อผิดพลาด</div>
-          <div className="text-gray-500 dark:text-gray-400 text-sm">{error}</div>
-          <button onClick={fetchProfile} className="mt-4 px-4 py-2 bg-brand-red text-white rounded-lg hover:bg-brand-red-dark transition-colors">
-            ลองใหม่
-          </button>
-        </div>
-      </div>
-    )
-  }
+  const role = profile?.Role?.name || "staff"
+  const roleInfo = ROLE_MAP[role] || ROLE_MAP.staff
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">โปรไฟล์ของฉัน</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">ดูและจัดการข้อมูลบัญชีของคุณ</p>
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Header Card */}
+      <div className="bg-gradient-to-r from-gray-800 to-gray-800/80 border border-gray-700 rounded-2xl p-6">
+        <div className="flex items-center gap-5">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 text-2xl font-bold">
+            {(profile?.name || "U").charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-white">{profile?.name}</h1>
+            <p className="text-sm text-gray-400 mt-0.5">{profile?.email}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${roleInfo.color}`}>
+                {roleInfo.label}
+              </span>
+              {profile?.is_tester && (
+                <span className="text-xs px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/30 font-medium">
+                  Tester
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Success message */}
-      {passwordSuccess && (
-        <div className="mb-4 px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 text-sm flex items-center gap-2 transition-colors">
-          <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+      {/* Alerts */}
+      {saved && (
+        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 flex items-center gap-2">
+          <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          {passwordSuccess}
+          <span className="text-sm text-green-400">{saved}</span>
+        </div>
+      )}
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-center gap-2">
+          <span className="text-sm text-red-400">{error}</span>
+          <button onClick={() => setError("")} className="ml-auto text-red-400 hover:text-red-300">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
 
-      {/* Profile Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors">
-        {/* Avatar & Name header */}
-        <div className="bg-gradient-to-r from-brand-dark to-gray-800 px-6 py-8">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-2xl backdrop-blur-sm border-2 border-white/30">
-              {profile?.name?.charAt(0)?.toUpperCase() || 'U'}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                {editingName ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      className="px-3 py-1.5 rounded-lg text-sm text-gray-900 dark:text-white border-0 focus:ring-2 focus:ring-brand-red dark:bg-gray-700"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleUpdateName()
-                        if (e.key === 'Escape') { setEditingName(false); setNewName(profile?.name || '') }
-                      }}
-                    />
-                    <button
-                      onClick={handleUpdateName}
-                      disabled={savingName}
-                      className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
-                    >
-                      {savingName ? '...' : 'บันทึก'}
-                    </button>
-                    <button
-                      onClick={() => { setEditingName(false); setNewName(profile?.name || '') }}
-                      className="px-3 py-1.5 bg-white/20 text-white text-xs font-medium rounded-lg hover:bg-white/30 transition-colors"
-                    >
-                      ยกเลิก
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <h2 className="text-white text-xl font-bold">{profile?.name || 'ไม่ระบุชื่อ'}</h2>
-                    <button
-                      onClick={() => setEditingName(true)}
-                      className="p-1 rounded hover:bg-white/20 transition-colors"
-                      title="แก้ไขชื่อ"
-                    >
-                      <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </button>
-                  </>
-                )}
-              </div>
-              <div className="mt-1.5">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${ROLE_COLORS[profile?.role] || 'bg-gray-100 text-gray-600'}`}>
-                  {ROLE_LABELS[profile?.role] || profile?.role}
-                </span>
-              </div>
-            </div>
+      {/* Profile Edit Card */}
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
+        <h3 className="text-base font-semibold text-white mb-4">ข้อมูลในระบบ</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">ชื่อ</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+            />
           </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">อีเมล</label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+            />
+          </div>
+          <button
+            onClick={saveProfile}
+            disabled={saving}
+            className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-colors"
+          >
+            {saving ? "กำลังบันทึก..." : "บันทึกข้อมูล"}
+          </button>
         </div>
+      </div>
 
-        {/* Info sections */}
-        <div className="divide-y divide-gray-100 dark:divide-gray-700">
-          {/* Username */}
-          <div className="px-6 py-4 flex items-center justify-between transition-colors">
-            <div>
-              <div className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">ชื่อผู้ใช้ (Username)</div>
-              <div className="text-gray-900 dark:text-white font-mono text-lg font-semibold mt-0.5">{profile?.username}</div>
-            </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg transition-colors">
-              <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      {/* Facebook Connect Card */}
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
+        <h3 className="text-base font-semibold text-white mb-2 flex items-center gap-2">
+          <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+          </svg>
+          เชื่อมต่อ Facebook
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">
+          เชื่อมต่อบัญชี Facebook เพื่อเป็น Tester — AI จะตอบเฉพาะ Tester ในโหมดทดสอบ
+        </p>
+
+        {profile?.facebook_psid ? (
+          <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <span className="text-xs text-gray-500 dark:text-gray-400">ไม่สามารถเปลี่ยนได้</span>
             </div>
-          </div>
-
-          {/* Password */}
-          <div className="px-6 py-4 transition-colors">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">รหัสผ่านปัจจุบัน</div>
-              <button
-                onClick={() => setShowPasswordForm(!showPasswordForm)}
-                className="text-xs text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 font-medium transition-colors"
-              >
-                {showPasswordForm ? 'ยกเลิก' : 'เปลี่ยนรหัสผ่าน'}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 mt-1">
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 font-mono transition-colors">
-                {showPlainPassword ? (
-                  <span className="text-gray-900 dark:text-white text-sm font-medium select-all">{profile?.plain_password}</span>
-                ) : (
-                  <span className="text-gray-400 dark:text-gray-500 text-sm tracking-widest">••••••••</span>
-                )}
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-green-400 font-medium text-sm">เชื่อมต่อแล้ว</span>
               </div>
-              <button
-                onClick={() => setShowPlainPassword(!showPlainPassword)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                title={showPlainPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-              >
-                {showPlainPassword ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(profile?.plain_password || '')
-                  // Simple feedback
-                  const btn = document.activeElement
-                  const original = btn.title
-                  btn.title = 'คัดลอกแล้ว!'
-                  setTimeout(() => { btn.title = original }, 1500)
-                }}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                title="คัดลอกรหัสผ่าน"
-              >
+              <p className="text-gray-400 text-xs mt-0.5">Facebook ID: {profile.facebook_psid}</p>
+            </div>
+            <button
+              onClick={unlinkFb}
+              disabled={saving}
+              className="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+            >
+              ยกเลิก
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleFbLogin}
+            disabled={fbLoading}
+            className="w-full bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-70 text-white py-3.5 rounded-xl font-medium transition-all flex items-center justify-center gap-3 text-base"
+          >
+            {fbLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white" />
+                กำลังเชื่อมต่อ...
+              </>
+            ) : (
+              <>
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+                ดำเนินการต่อด้วย Facebook
+              </>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Password Change Card */}
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
+        <button onClick={() => setShowPw(!showPw)} className="flex items-center justify-between w-full">
+          <h3 className="text-base font-semibold text-white">เปลี่ยนรหัสผ่าน</h3>
+          <svg
+            className={`w-5 h-5 text-gray-400 transition-transform ${showPw ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {showPw && (
+          <div className="mt-4 space-y-3">
+            <input
+              type="password"
+              value={curPw}
+              onChange={(e) => setCurPw(e.target.value)}
+              placeholder="รหัสผ่านปัจจุบัน"
+              className="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+            />
+            <input
+              type="password"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              placeholder="รหัสผ่านใหม่"
+              className="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+            />
+            <button
+              onClick={changePassword}
+              disabled={saving}
+              className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-colors"
+            >
+              เปลี่ยนรหัสผ่าน
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Facebook Confirmation Modal */}
+      {fbConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setFbConfirm(null)}
+        >
+          <div
+            className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-sm mx-4 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-[#1877F2] px-6 py-4 flex items-center justify-between">
+              <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+                ยืนยันบัญชี Facebook
+              </h3>
+              <button onClick={() => setFbConfirm(null)} className="text-white/70 hover:text-white">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            {/* Change password form */}
-            {showPasswordForm && (
-              <form onSubmit={handleChangePassword} className="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3 transition-colors">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">รหัสผ่านใหม่</label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="อย่างน้อย 6 ตัวอักษร"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                    autoFocus
-                  />
+            {/* Modal Body */}
+            <div className="p-6 text-center">
+              {fbConfirm.picture ? (
+                <img
+                  src={fbConfirm.picture}
+                  alt={fbConfirm.name}
+                  className="w-20 h-20 rounded-full mx-auto mb-4 border-2 border-gray-600"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full mx-auto mb-4 bg-[#1877F2]/20 border-2 border-[#1877F2]/40 flex items-center justify-center text-[#1877F2] text-2xl font-bold">
+                  {(fbConfirm.name || "F").charAt(0)}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ยืนยันรหัสผ่านใหม่</label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="กรอกรหัสผ่านอีกครั้ง"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent dark:bg-gray-700 dark:text-white transition-colors"
-                  />
-                </div>
-                {passwordError && (
-                  <div className="px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-xs transition-colors">
-                    {passwordError}
-                  </div>
-                )}
+              )}
+              <p className="text-white font-semibold text-lg">{fbConfirm.name}</p>
+              <p className="text-gray-400 text-sm mt-1">Facebook ID: {fbConfirm.id}</p>
+              <p className="text-gray-500 text-xs mt-3">
+                ต้องการเชื่อมต่อบัญชีนี้กับระบบ HatFixClean หรือไม่?
+              </p>
+
+              <div className="flex gap-3 mt-6">
                 <button
-                  type="submit"
-                  disabled={savingPassword}
-                  className="w-full py-2.5 bg-brand-red text-white font-medium rounded-lg hover:bg-brand-red-dark transition-colors disabled:opacity-50 text-sm"
+                  onClick={() => setFbConfirm(null)}
+                  className="flex-1 border border-gray-600 text-gray-300 hover:text-white hover:border-gray-500 py-2.5 rounded-xl text-sm font-medium transition-colors"
                 >
-                  {savingPassword ? 'กำลังบันทึก...' : 'เปลี่ยนรหัสผ่าน'}
+                  ยกเลิก
                 </button>
-              </form>
-            )}
-          </div>
-
-          {/* Email (optional) */}
-          {profile?.email && (
-            <div className="px-6 py-4 transition-colors">
-              <div className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">อีเมล</div>
-              <div className="text-gray-900 dark:text-white text-sm mt-0.5">{profile.email}</div>
-            </div>
-          )}
-
-          {/* Account info */}
-          <div className="px-6 py-4 transition-colors">
-            <div className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">ข้อมูลบัญชี</div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs text-gray-400 dark:text-gray-500">วันที่สร้างบัญชี</div>
-                <div className="text-gray-700 dark:text-gray-300 text-sm mt-0.5">
-                  {profile?.createdAt
-                    ? new Date(profile.createdAt).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
-                    : '-'}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 dark:text-gray-500">เข้าสู่ระบบล่าสุด</div>
-                <div className="text-gray-700 dark:text-gray-300 text-sm mt-0.5">
-                  {profile?.last_login
-                    ? new Date(profile.last_login).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                    : 'ยังไม่เคยเข้าสู่ระบบ'}
-                </div>
+                <button
+                  onClick={confirmFbLink}
+                  disabled={saving}
+                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
+                      กำลังเชื่อมต่อ...
+                    </>
+                  ) : (
+                    "ยืนยันเชื่อมต่อ"
+                  )}
+                </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 const Anthropic = require('@anthropic-ai/sdk')
 const axios = require('axios')
-const {
+const { User,
   Customer, Lead, Order, Shipment, FacebookPage, Product,
   ConversationThread, ConversationMessage
 } = require('../../models')
@@ -69,7 +69,7 @@ async function getPageConfig(pageId) {
     page_id: pageId,
     page_name: 'Default',
     access_token: process.env.FB_PAGE_ACCESS_TOKEN,
-    ai_enabled: true,
+    ai_mode: "test",
     ai_persona: 'น้องแฮทซ์',
     ai_system_prompt: null
   }
@@ -301,7 +301,12 @@ async function analyzeImages(imageUrls, customer, thread, pageConfig) {
  */
 async function handleImageMessage(senderPsid, imageUrls, customer, thread, pageConfig) {
   try {
-    if (pageConfig && !pageConfig.ai_enabled) return
+    const imgAiMode = pageConfig?.ai_mode || "off"
+    if (imgAiMode === "off") return
+    if (imgAiMode === "test") {
+      const imgTester = await User.findOne({ where: { facebook_psid: senderPsid, is_tester: true }, raw: true })
+      if (!imgTester) return
+    }
 
     // Typing indicator
     const accessToken = pageConfig ? pageConfig.access_token : process.env.FB_PAGE_ACCESS_TOKEN
@@ -406,11 +411,22 @@ async function handleImageMessage(senderPsid, imageUrls, customer, thread, pageC
 
 async function handleMessage(senderPsid, messageText, customer, thread, isNewCustomer, pageConfig) {
   try {
-    // ถ้า AI ปิดอยู่ → ไม่ตอบ
-    if (pageConfig && !pageConfig.ai_enabled) {
-      console.log(`[Claude] AI disabled for page ${pageConfig.page_name}, skipping`)
+    // ตรวจสอบ AI Mode
+    const aiMode = pageConfig?.ai_mode || "off"
+    if (aiMode === "off") {
+      console.log(`[Claude] AI OFF for page ${pageConfig?.page_name}, skipping`)
       return
     }
+    if (aiMode === "test") {
+      // เช็คว่า sender เป็น Tester (พนักงานในระบบ) หรือไม่
+      const tester = await User.findOne({ where: { facebook_psid: senderPsid, is_tester: true }, raw: true })
+      if (!tester) {
+        console.log(`[Claude] TEST mode — sender ${senderPsid} is NOT a tester, skipping`)
+        return
+      }
+      console.log(`[Claude] TEST mode — tester ${tester.name} confirmed, replying`)
+    }
+    // aiMode === "live" → ตอบทุกคน
 
     // Typing indicator
     const accessToken = pageConfig ? pageConfig.access_token : process.env.FB_PAGE_ACCESS_TOKEN

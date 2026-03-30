@@ -122,7 +122,7 @@ export const facebookPages = {
   create: (data) => client.post('/api/facebook-pages', data).then((r) => r.data),
   update: (id, data) => client.put(`/api/facebook-pages/${id}`, data).then((r) => r.data),
   remove: (id) => client.delete(`/api/facebook-pages/${id}`).then((r) => r.data),
-  toggleAi: (id) => client.post(`/api/facebook-pages/${id}/toggle-ai`).then((r) => r.data),
+  setAiMode: (id, mode) => client.post(`/api/facebook-pages/${id}/ai-mode`, { mode }).then((r) => r.data),
 }
 
 // ─── Conversations (Messenger) ───────────────────────────────────────────────

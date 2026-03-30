@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Outlet, NavLink, useNavigate } from "react-router-dom"
+import { Outlet, NavLink, Link, useNavigate } from "react-router-dom"
 import useAuth from "../../hooks/useAuth.js"
 import StatusBadge from "../common/StatusBadge.jsx"
 import { usePage } from "../../contexts/PageContext.jsx"
@@ -106,17 +106,17 @@ export default function AdminLayout() {
 
       {/* User info + logout */}
       <div className="px-4 py-4 border-t border-white/10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">
+        <Link to="/profile" className="flex items-center gap-3 mb-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/10 transition-all cursor-pointer group">
+          <div className="w-9 h-9 rounded-full bg-white/20 group-hover:bg-white/30 flex items-center justify-center text-white font-bold text-sm transition-all">
             {user?.name?.charAt(0)?.toUpperCase() || "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-white text-sm font-medium truncate">
+            <div className="text-white text-sm font-medium truncate group-hover:text-red-400 transition-colors">
               {user?.name || "ผู้ใช้งาน"}
             </div>
             <StatusBadge status={user?.role} type="role" className="mt-0.5" />
           </div>
-        </div>
+        </Link>
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-white/60 hover:bg-white/10 hover:text-white text-sm transition-all"

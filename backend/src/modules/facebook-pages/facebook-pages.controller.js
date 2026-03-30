@@ -22,7 +22,7 @@ async function fetchProfilePicture(page) {
 const list = async (req, res) => {
   try {
     const pages = await FacebookPage.findAll({
-      attributes: ["id", "page_id", "page_name", "is_active", "ai_enabled", "ai_persona", "note", "profile_picture_url", "createdAt"],
+      attributes: ["id", "page_id", "page_name", "is_active", "ai_mode", "ai_persona", "note", "profile_picture_url", "createdAt"],
       order: [["createdAt", "ASC"]],
     })
     return success(res, pages)
@@ -60,7 +60,7 @@ const getOne = async (req, res) => {
 // POST /api/facebook-pages
 const create = async (req, res) => {
   try {
-    const { page_id, page_name, access_token, ai_enabled, ai_persona, ai_system_prompt, note } = req.body
+    const { page_id, page_name, access_token, ai_mode, ai_persona, ai_system_prompt, note } = req.body
     if (!page_id || !page_name || !access_token) {
       return error(res, "page_id, page_name, and access_token are required", 400)
     }
@@ -72,7 +72,7 @@ const create = async (req, res) => {
       page_id,
       page_name,
       access_token,
-      ai_enabled: ai_enabled !== false,
+      ai_mode: ai_mode !== false,
       ai_persona: ai_persona || "น้องแฮทซ์",
       ai_system_prompt: ai_system_prompt || null,
       note: note || null,
@@ -94,12 +94,12 @@ const update = async (req, res) => {
     const page = await FacebookPage.findByPk(req.params.id)
     if (!page) return error(res, "Page not found", 404)
 
-    const { page_name, access_token, is_active, ai_enabled, ai_persona, ai_system_prompt, note } = req.body
+    const { page_name, access_token, is_active, ai_mode, ai_persona, ai_system_prompt, note } = req.body
     const updates = {}
     if (page_name !== undefined) updates.page_name = page_name
     if (access_token !== undefined) updates.access_token = access_token
     if (is_active !== undefined) updates.is_active = is_active
-    if (ai_enabled !== undefined) updates.ai_enabled = ai_enabled
+    if (ai_mode !== undefined) updates.ai_mode = ai_mode
     if (ai_persona !== undefined) updates.ai_persona = ai_persona
     if (ai_system_prompt !== undefined) updates.ai_system_prompt = ai_system_prompt
     if (note !== undefined) updates.note = note
@@ -131,9 +131,9 @@ const toggleAi = async (req, res) => {
   try {
     const page = await FacebookPage.findByPk(req.params.id)
     if (!page) return error(res, "Page not found", 404)
-    await page.update({ ai_enabled: !page.ai_enabled })
+    await page.update({ ai_mode: !page.ai_mode })
     claudeService.clearPageCache()
-    return success(res, { ai_enabled: page.ai_enabled }, `AI ${page.ai_enabled ? "enabled" : "disabled"}`)
+    return success(res, { ai_mode: page.ai_mode }, `AI ${page.ai_mode ? "enabled" : "disabled"}`)
   } catch (err) {
     return error(res, err.message)
   }
@@ -154,4 +154,19 @@ const refreshAvatar = async (req, res) => {
   }
 }
 
-module.exports = { list, getOne, create, update, remove, toggleAi, refreshAvatar }
+
+const setAiMode = async (req, res) => {
+  try {
+    const page = await FacebookPage.findByPk(req.params.id)
+    if (!page) return error(res, "Page not found", 404)
+    const { mode } = req.body
+    if (!["off", "test", "live"].includes(mode)) return error(res, "Invalid mode", 400)
+    await page.update({ ai_mode: mode })
+    claudeService.clearPageCache()
+    return success(res, { ai_mode: mode }, "AI mode updated")
+  } catch (err) {
+    return error(res, err.message)
+  }
+}
+
+module.exports = { list, getOne, create, update, remove, setAiMode }

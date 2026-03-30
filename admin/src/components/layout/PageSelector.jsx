@@ -50,7 +50,7 @@ function PageAvatar({ page, size = "md" }) {
 }
 
 function AiStatusBadge({ page, compact = false }) {
-  const isOn = page.ai_enabled !== false && page.ai_enabled !== 0
+  const isOn = page.ai_mode && page.ai_mode !== "off"
   return (
     <span className="flex items-center gap-1.5">
       <span
@@ -60,7 +60,7 @@ function AiStatusBadge({ page, compact = false }) {
       />
       {!compact && (
         <span className={`text-xs ${isOn ? "text-green-400" : "text-white/40"}`}>
-          {isOn ? "AI เปิด" : "AI ปิด"}
+          {isOn ? "AI" : "AI ปิด"}
         </span>
       )}
     </span>
@@ -129,7 +129,7 @@ export default function PageSelector() {
       >
         {selectedPage && <PageAvatar page={selectedPage} />}
         <div className="flex-1 min-w-0 text-left">
-          <div className="text-white text-sm font-medium truncate leading-tight">
+          <div className="text-white text-sm font-medium leading-tight truncate" title={pageName}>
             {pageName}
           </div>
           <div className="mt-0.5">
@@ -212,7 +212,7 @@ export default function PageSelector() {
                 <PageAvatar page={page} size="sm" />
                 <div className="flex-1 min-w-0">
                   <div
-                    className={`text-sm font-medium truncate leading-tight ${
+                    className={`text-sm font-medium leading-tight truncate ${
                       isSelected ? "text-white" : "text-white/80"
                     }`}
                   >
