@@ -10,19 +10,36 @@ const summary = async (req, res) => {
     const todayEnd = new Date()
     todayEnd.setHours(23, 59, 59, 999)
 
-    // TODO: add page_id column to Lead, Order, Customer, Payment models for proper filtering
-    // For now, page_id is accepted but not filtered until columns exist
+    const leadWhere = { createdAt: { [Op.between]: [today, todayEnd] } }
+    const orderTodayWhere = { createdAt: { [Op.between]: [today, todayEnd] } }
+    const pendingWhere = { status: { [Op.in]: ['draft','awaiting_inbound_shipment','inbound_shipped','received'] } }
+    const inProgressWhere = { status: { [Op.in]: ['in_progress','washing','shaping','qc'] } }
+    const awaitingPayWhere = { status: 'awaiting_payment' }
+    const readyShipWhere = { status: 'ready_to_ship' }
+    const revTodayWhere = { status: 'verified', createdAt: { [Op.between]: [today, todayEnd] } }
+    const revMonthWhere = { status: 'verified', createdAt: { [Op.gte]: new Date(today.getFullYear(), today.getMonth(), 1) } }
+
+    if (page_id) {
+      leadWhere.page_id = page_id
+      orderTodayWhere.page_id = page_id
+      pendingWhere.page_id = page_id
+      inProgressWhere.page_id = page_id
+      awaitingPayWhere.page_id = page_id
+      readyShipWhere.page_id = page_id
+    }
+
+    const paymentInclude = page_id ? [{ model: Order, attributes: [], where: { page_id }, required: true }] : []
 
     const [leadsToday, ordersToday, pendingOrders, inProgressOrders,
            awaitingPayment, readyToShip, revenueToday, revenueMonth] = await Promise.all([
-      Lead.count({ where: { createdAt: { [Op.between]: [today, todayEnd] } } }),
-      Order.count({ where: { createdAt: { [Op.between]: [today, todayEnd] } } }),
-      Order.count({ where: { status: { [Op.in]: ['draft','awaiting_inbound_shipment','inbound_shipped','received'] } } }),
-      Order.count({ where: { status: { [Op.in]: ['in_progress','washing','shaping','qc'] } } }),
-      Order.count({ where: { status: 'awaiting_payment' } }),
-      Order.count({ where: { status: 'ready_to_ship' } }),
-      Payment.sum('amount', { where: { status: 'verified', createdAt: { [Op.between]: [today, todayEnd] } } }),
-      Payment.sum('amount', { where: { status: 'verified', createdAt: { [Op.gte]: new Date(today.getFullYear(), today.getMonth(), 1) } } })
+      Lead.count({ where: leadWhere }),
+      Order.count({ where: orderTodayWhere }),
+      Order.count({ where: pendingWhere }),
+      Order.count({ where: inProgressWhere }),
+      Order.count({ where: awaitingPayWhere }),
+      Order.count({ where: readyShipWhere }),
+      Payment.sum('amount', { where: revTodayWhere, include: paymentInclude }),
+      Payment.sum('amount', { where: revMonthWhere, include: paymentInclude })
     ])
 
     res.json({
@@ -42,10 +59,13 @@ const summary = async (req, res) => {
 
 const orderStats = async (req, res) => {
   try {
-    // TODO: add page_id filtering when column exists on Order model
     const { page_id } = req.query
+    const where = {}
+    if (page_id) where.page_id = page_id
+
     const stats = await Order.findAll({
       attributes: ['status', [fn('COUNT', col('id')), 'count']],
+      where,
       group: ['status'],
       raw: true
     })
@@ -58,19 +78,22 @@ const orderStats = async (req, res) => {
 const revenue = async (req, res) => {
   try {
     const { period = '7d', page_id } = req.query
-    // TODO: add page_id filtering when column exists on Payment model
     const days = period === '30d' ? 30 : period === '90d' ? 90 : 7
     const from = new Date()
     from.setDate(from.getDate() - days)
 
+    const payWhere = { status: 'verified', createdAt: { [Op.gte]: from } }
+    const paymentInclude = page_id ? [{ model: Order, attributes: [], where: { page_id }, required: true }] : []
+
     const data = await Payment.findAll({
-      where: { status: 'verified', createdAt: { [Op.gte]: from } },
+      where: payWhere,
+      include: paymentInclude,
       attributes: [
-        [fn('DATE', col('createdAt')), 'date'],
-        [fn('SUM', col('amount')), 'total']
+        [fn('DATE', col('Payment.createdAt')), 'date'],
+        [fn('SUM', col('Payment.amount')), 'total']
       ],
-      group: [fn('DATE', col('createdAt'))],
-      order: [[fn('DATE', col('createdAt')), 'ASC']],
+      group: [fn('DATE', col('Payment.createdAt'))],
+      order: [[fn('DATE', col('Payment.createdAt')), 'ASC']],
       raw: true
     })
     res.json({ data })
@@ -83,21 +106,13 @@ const attribution = async (req, res) => {
   try {
     const { date_from, date_to, page_id } = req.query
 
-    // สร้าง where clause สำหรับช่วงเวลา
-    const dateWhere = {}
-    if (date_from) dateWhere[Op.gte] = new Date(date_from)
-    if (date_to) {
-      const to = new Date(date_to)
-      to.setHours(23, 59, 59, 999)
-      dateWhere[Op.lte] = to
+    const pageFilter = page_id ? "AND l.page_id = :page_id" : ""
+    const replacements = {
+      ...(date_from ? { date_from } : {}),
+      ...(date_to ? { date_to: new Date(new Date(date_to).setHours(23, 59, 59, 999)) } : {}),
+      ...(page_id ? { page_id } : {})
     }
-    const leadDateFilter = Object.keys(dateWhere).length > 0
-      ? { '$Lead.createdAt$': dateWhere }
-      : {}
 
-    // TODO: add page_id filtering to attribution queries when column exists
-
-    // ดึงข้อมูล attribution พร้อม lead + order
     const campaigns = await sequelize.query(`
       SELECT
         COALESCE(la.campaign_id, la.ad_id, la.source_type, 'direct') AS campaign,
@@ -111,17 +126,14 @@ const attribution = async (req, res) => {
       LEFT JOIN orders o ON o.lead_id = l.id AND o.status NOT IN ('draft')
       ${date_from ? "WHERE l.createdAt >= :date_from" : "WHERE 1=1"}
       ${date_to ? "AND l.createdAt <= :date_to" : ""}
+      ${pageFilter}
       GROUP BY campaign, campaign_label, la.source_type
       ORDER BY leads_count DESC
     `, {
-      replacements: {
-        ...(date_from ? { date_from } : {}),
-        ...(date_to ? { date_to: new Date(new Date(date_to).setHours(23, 59, 59, 999)) } : {})
-      },
+      replacements,
       type: sequelize.QueryTypes.SELECT
     })
 
-    // ดึง leads ที่ไม่มี attribution (organic / direct message)
     const directLeadsQuery = `
       SELECT
         COUNT(DISTINCT l.id) AS leads_count,
@@ -133,16 +145,13 @@ const attribution = async (req, res) => {
       WHERE la.id IS NULL
       ${date_from ? "AND l.createdAt >= :date_from" : ""}
       ${date_to ? "AND l.createdAt <= :date_to" : ""}
+      ${pageFilter}
     `
     const [directLeads] = await sequelize.query(directLeadsQuery, {
-      replacements: {
-        ...(date_from ? { date_from } : {}),
-        ...(date_to ? { date_to: new Date(new Date(date_to).setHours(23, 59, 59, 999)) } : {})
-      },
+      replacements,
       type: sequelize.QueryTypes.SELECT
     })
 
-    // เพิ่ม direct/organic เข้าไปในรายการ
     if (directLeads && directLeads.leads_count > 0) {
       campaigns.push({
         campaign: 'direct',
@@ -154,7 +163,6 @@ const attribution = async (req, res) => {
       })
     }
 
-    // สรุปรวม
     const totalLeads = campaigns.reduce((s, c) => s + (parseInt(c.leads_count) || 0), 0)
     const totalOrders = campaigns.reduce((s, c) => s + (parseInt(c.orders_count) || 0), 0)
     const totalRevenue = campaigns.reduce((s, c) => s + (parseFloat(c.revenue) || 0), 0)

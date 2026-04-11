@@ -6,6 +6,10 @@ const { User,
 } = require('../../models')
 const claudeService = require('./claude-messenger.service')
 
+// Socket.IO instance for real-time events
+let ioInstance = null
+function setIO(io) { ioInstance = io }
+
 // ============================================================
 // สถาปัตยกรรมใหม่: Claude ตรง + Multi-Page Support
 // Facebook → Backend (บันทึก DB + สกัดข้อมูล) → Claude AI → ตอบ Messenger
@@ -52,18 +56,47 @@ const handleMessenger = async (req, res) => {
           try {
             const profileRes = await axios.get(
               `https://graph.facebook.com/v19.0/${senderPsid}`,
-              { params: { fields: 'name', access_token: pageConfig.access_token } }
+              { params: { fields: 'name,profile_pic', access_token: pageConfig.access_token } }
             )
             fbName = profileRes.data.name || ''
+            var fbPic = profileRes.data.profile_pic || ''
           } catch (e) {
             console.error('Failed to get FB profile:', e.message)
           }
           customer = await Customer.create({
             facebook_psid: senderPsid,
             facebook_name: fbName,
-            name: fbName
+            name: fbName,
+            profile_picture_url: fbPic || null,
+            page_id: pageId
           })
           console.log(`[${pageConfig.page_name}] New customer: ${fbName} (${senderPsid})`)
+        } else {
+          // ลูกค้าเก่า — อัพเดทรูป + PSID ถ้ายังไม่มี
+          const custUpdates = {}
+          if (!customer.profile_picture_url || !customer.facebook_name) {
+            try {
+              const profileRes = await axios.get(
+                `https://graph.facebook.com/v19.0/${senderPsid}`,
+                { params: { fields: 'name,profile_pic', access_token: pageConfig.access_token } }
+              )
+              if (profileRes.data.profile_pic && !customer.profile_picture_url) {
+                custUpdates.profile_picture_url = profileRes.data.profile_pic
+              }
+              if (profileRes.data.name && !customer.facebook_name) {
+                custUpdates.facebook_name = profileRes.data.name
+                if (!customer.name) custUpdates.name = profileRes.data.name
+              }
+            } catch (e) { /* skip */ }
+          }
+          // อัพเดท PSID ถ้าเปลี่ยน (เช่น ลูกค้า import มาก่อน)
+          if (customer.facebook_psid !== senderPsid) {
+            custUpdates.facebook_psid = senderPsid
+          }
+          if (Object.keys(custUpdates).length > 0) {
+            await customer.update(custUpdates)
+            console.log(`[${pageConfig.page_name}] Updated customer: ${customer.name} - ${Object.keys(custUpdates).join(', ')}`)
+          }
         }
 
         // 2) หา/สร้าง Thread
@@ -108,6 +141,7 @@ const handleMessenger = async (req, res) => {
           if (extracted.phone) custUpdates.phone = extracted.phone
           if (extracted.name) custUpdates.name = extracted.name
           if (Object.keys(custUpdates).length > 0) {
+            custUpdates.page_id = pageId;
             await customer.update(custUpdates)
             console.log('Customer updated:', custUpdates)
           }
@@ -153,12 +187,29 @@ const handleMessenger = async (req, res) => {
           raw_payload: event
         })
 
+        // 6.4) Update thread timestamp
+        await thread.update({ updatedAt: new Date() })
+
+        // 6.5) Emit real-time event
+        if (ioInstance) {
+          console.log('[Socket.IO] Emitting new_message to page_' + pageId, 'thread:', thread.id)
+          ioInstance.to('page_' + pageId).emit('new_message', {
+            thread_id: thread.id,
+            customer_id: customer.id,
+            customer_name: customer.name || customer.facebook_name || '',
+            direction: 'inbound',
+            content: displayText,
+            page_id: pageId,
+            timestamp: new Date()
+          })
+        }
+
         // 7) สร้าง Lead ถ้ายังไม่มี
         const activeLead = await Lead.findOne({
           where: { customer_id: customer.id, status: ['new', 'awaiting_details', 'awaiting_photos', 'awaiting_shipment'] }
         })
         if (!activeLead) {
-          const lead = await Lead.create({ customer_id: customer.id, status: 'new' })
+          const lead = await Lead.create({ customer_id: customer.id, status: 'new', page_id: pageId })
           const referral = event.referral || event.postback?.referral || event.message?.referral || null
           if (referral) {
             const ref = referral.ref || ''
@@ -182,6 +233,37 @@ const handleMessenger = async (req, res) => {
             console.log("[Test Mode] Skipping reply — sender", senderPsid, "is not a tester")
           } else {
             console.log("[Test Mode] Replying to tester:", tester.name)
+          }
+        }
+
+        
+        // 8.5) เช็ค Linking Code — ผูก PSID กับ User
+        if (messageText && messageText.toUpperCase().startsWith("LINK-")) {
+          const linkCode = messageText.trim().toUpperCase()
+          const { SiteSetting } = require("../../models")
+          const setting = await SiteSetting.findOne({ where: { key: "linking_codes" } })
+          const codes = setting ? JSON.parse(setting.value) : {}
+          
+          if (codes[linkCode]) {
+            const userId = codes[linkCode].user_id
+            const user = await User.findByPk(userId)
+            if (user) {
+              await user.update({ facebook_psid: senderPsid, is_tester: true })
+              console.log("[Linking] PSID", senderPsid, "linked to user", user.name)
+              
+              // ลบ code ที่ใช้แล้ว
+              delete codes[linkCode]
+              if (setting) {
+                await setting.update({ value: JSON.stringify(codes) })
+              }
+              
+              // ตอบกลับว่าเชื่อมต่อสำเร็จ
+              await claudeService.sendToMessenger(senderPsid, "เชื่อมต่อสำเร็จ! คุณ" + user.name + " ถูกผูกกับระบบแล้ว — คุณเป็น Tester แล้ว", pageConfig)
+              continue
+            }
+          } else {
+            await claudeService.sendToMessenger(senderPsid, "รหัสเชื่อมต่อไม่ถูกต้องหรือหมดอายุ กรุณาลองใหม่จากหน้า Profile ในระบบ Admin", pageConfig)
+            continue
           }
         }
 
@@ -250,4 +332,4 @@ const handleN8n = async (req, res) => {
   res.json({ success: true, message: 'n8n endpoint deprecated — using Claude directly' })
 }
 
-module.exports = { verifyMessenger, handleMessenger, handleN8n }
+module.exports = { verifyMessenger, handleMessenger, handleN8n, setIO }

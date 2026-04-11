@@ -69,7 +69,7 @@ export default function AdminLayout() {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
-        <div className="w-10 h-10 bg-brand-red rounded-lg flex items-center justify-center text-white font-black text-lg">
+        <div className="w-10 h-10 bg-brand-red rounded-lg flex items-center justify-center text-gray-900 font-black text-lg">
           H
         </div>
         <div>
@@ -92,7 +92,7 @@ export default function AdminLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-brand-red text-white shadow-lg shadow-red-500/20"
+                    ? "bg-brand-red text-gray-900 shadow-lg shadow-yellow-400/20"
                     : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`
               }
@@ -111,7 +111,7 @@ export default function AdminLayout() {
             {user?.name?.charAt(0)?.toUpperCase() || "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-white text-sm font-medium truncate group-hover:text-red-400 transition-colors">
+            <div className="text-white text-sm font-medium truncate group-hover:text-yellow-400 transition-colors">
               {user?.name || "ผู้ใช้งาน"}
             </div>
             <StatusBadge status={user?.role} type="role" className="mt-0.5" />
@@ -161,7 +161,7 @@ export default function AdminLayout() {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-brand-red rounded-md flex items-center justify-center text-white font-black text-sm">
+            <div className="w-7 h-7 bg-brand-red rounded-md flex items-center justify-center text-gray-900 font-black text-sm">
               H
             </div>
             <span className="font-bold text-gray-900">HATZ Admin</span>

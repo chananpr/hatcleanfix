@@ -15,12 +15,28 @@ const listThreads = async (req, res) => {
       where,
       include: [{
         model: Customer,
-        attributes: ['id', 'name', 'facebook_name', 'facebook_psid', 'phone', 'province']
+        attributes: ['id', 'name', 'facebook_name', 'facebook_psid', 'phone', 'province', 'profile_picture_url']
       }],
       order: [['updatedAt', 'DESC']],
       limit: 50
     })
-    return success(res, threads)
+    
+    // Add last_message for each thread
+    const threadsWithLastMsg = await Promise.all(threads.map(async (t) => {
+      const lastMsg = await ConversationMessage.findOne({
+        where: { thread_id: t.id },
+        order: [['createdAt', 'DESC']],
+        attributes: ['content', 'direction', 'createdAt'],
+        raw: true
+      })
+      const json = t.toJSON()
+      json.last_message = lastMsg?.content || null
+      json.last_message_at = lastMsg?.createdAt || t.updatedAt
+      json.last_message_direction = lastMsg?.direction || null
+      return json
+    }))
+    
+    return success(res, threadsWithLastMsg)
   } catch (err) {
     return error(res, err.message)
   }

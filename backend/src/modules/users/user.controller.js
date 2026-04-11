@@ -98,4 +98,36 @@ const linkFacebook = async (req, res) => {
   } catch (err) { return error(res, err.message) }
 }
 
-module.exports = { list, get, create, update, remove, listRoles, getMyProfile, updateMyProfile, changePassword, linkFacebook }
+
+const generateLinkCode = async (req, res) => {
+  try {
+    const { User, SiteSetting } = require("../../models")
+    const user = await User.findByPk(req.user.id)
+    if (!user) return error(res, "User not found", 404)
+    
+    // สร้าง code 6 หลัก
+    const code = "LINK-" + Math.random().toString(36).substring(2, 8).toUpperCase()
+    
+    // เก็บใน SiteSetting
+    let setting = await SiteSetting.findOne({ where: { key: "linking_codes" } })
+    let codes = setting ? JSON.parse(setting.value) : {}
+    
+    // ลบ code เก่าของ user นี้
+    for (const k in codes) {
+      if (codes[k].user_id === req.user.id) delete codes[k]
+    }
+    
+    // เพิ่ม code ใหม่ (หมดอายุ 30 นาที)
+    codes[code] = { user_id: req.user.id, user_name: user.name, created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() }
+    
+    if (setting) {
+      await setting.update({ value: JSON.stringify(codes) })
+    } else {
+      await SiteSetting.create({ key: "linking_codes", value: JSON.stringify(codes) })
+    }
+    
+    return success(res, { code, expires_in: "30 นาที" }, "Linking code generated")
+  } catch (err) { return error(res, err.message) }
+}
+
+module.exports = { list, get, create, update, remove, listRoles, getMyProfile, updateMyProfile, changePassword, linkFacebook, generateLinkCode }

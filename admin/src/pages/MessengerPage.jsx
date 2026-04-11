@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { io } from 'socket.io-client'
 import { conversations } from '../api/index.js'
 import { usePage } from '../contexts/PageContext.jsx'
 
@@ -34,6 +35,7 @@ export default function MessengerPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const messagesEndRef = useRef(null)
   const pollRef = useRef(null)
+  const socketRef = useRef(null)
 
   const selectedThread = threads.find(t => t.thread_id === selectedThreadId || t.id === selectedThreadId)
 
@@ -55,6 +57,9 @@ export default function MessengerPage() {
         ...t,
         thread_id: t.id,
         facebook_name: t.Customer?.facebook_name || t.Customer?.name || t.facebook_name || '',
+        last_message: t.last_message || null,
+        last_message_at: t.last_message_at || t.updatedAt,
+        profile_picture_url: t.Customer?.profile_picture_url || null,
         customer_name: t.Customer?.name || t.customer_name || '',
         phone: t.Customer?.phone || t.phone || '',
         province: t.Customer?.province || t.province || '',
@@ -89,16 +94,69 @@ export default function MessengerPage() {
     fetchThreads()
   }, [fetchThreads, selectedPage?.page_id])
 
-  // Poll for new data every 10 seconds
+  // Socket.IO real-time connection
   useEffect(() => {
-    pollRef.current = setInterval(() => {
+    if (!selectedPage?.page_id) return
+
+    const socket = io('https://api.hatfixclean.com', {
+      transports: ['websocket', 'polling']
+    })
+    socketRef.current = socket
+
+    socket.on('connect', () => {
+      console.log('[Socket.IO] Connected')
+      socket.emit('join_page', selectedPage.page_id)
+    })
+
+    // Listen for new messages
+    socket.on('new_message', (data) => {
+      console.log('[Socket.IO] new_message received:', data.thread_id, data.content?.substring(0, 30))
+      // Update threads list - move this thread to top with new message
+      setThreads(prev => {
+        let found = false
+        const updated = prev.map(t => {
+          if (String(t.thread_id) === String(data.thread_id) || String(t.id) === String(data.thread_id)) {
+            found = true
+            return { ...t, last_message: data.content, last_message_at: new Date().toISOString(), updatedAt: new Date().toISOString() }
+          }
+          return t
+        })
+        // If thread not found, re-fetch all threads
+        if (!found) {
+          fetchThreads()
+          return prev
+        }
+        // Sort: latest message first
+        return [...updated].sort((a, b) => {
+          const dateA = new Date(a.last_message_at || a.updatedAt || 0)
+          const dateB = new Date(b.last_message_at || b.updatedAt || 0)
+          return dateB - dateA
+        })
+      })
+
+      // If this thread is selected, add message to messages list
+      setMessages(prev => {
+        if (!selectedThreadId) return prev
+        if (selectedThreadId !== data.thread_id) return prev
+        return [...prev, {
+          id: Date.now(),
+          direction: data.direction,
+          content: data.content,
+          created_at: data.timestamp,
+          createdAt: data.timestamp
+        }]
+      })
+    })
+
+    // Listen for new threads
+    socket.on('new_thread', () => {
       fetchThreads()
-      if (selectedThreadId) {
-        fetchMessages(selectedThreadId)
-      }
-    }, 10000)
-    return () => clearInterval(pollRef.current)
-  }, [selectedThreadId, fetchThreads, fetchMessages])
+    })
+
+    return () => {
+      socket.disconnect()
+    }
+  }, [selectedPage?.page_id, selectedThreadId, fetchThreads])
 
   // When selecting a thread
   const selectThread = (threadId) => {

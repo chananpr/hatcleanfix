@@ -60,7 +60,7 @@ function AiStatusBadge({ page, compact = false }) {
       />
       {!compact && (
         <span className={`text-xs ${isOn ? "text-green-400" : "text-white/40"}`}>
-          {isOn ? "AI" : "AI ปิด"}
+          {page.ai_mode === "live" ? "🚀 AI" : page.ai_mode === "test" ? "🧪 ทดสอบ" : "⏸ ปิด"}
         </span>
       )}
     </span>

@@ -44,7 +44,8 @@ const Customer = sequelize.define('Customer', {
   facebook_name:      { type: DataTypes.STRING },
   province:           { type: DataTypes.STRING },
   note:               { type: DataTypes.TEXT },
-  source_campaign_id: { type: DataTypes.STRING }
+  source_campaign_id: { type: DataTypes.STRING },
+  page_id:            { type: DataTypes.STRING(50) }
 }, { tableName: 'customers' })
 
 const CustomerAddress = sequelize.define('CustomerAddress', {
@@ -69,7 +70,8 @@ const Lead = sequelize.define('Lead', {
   province:      { type: DataTypes.STRING },
   needs_washing: { type: DataTypes.BOOLEAN, defaultValue: false },
   note:          { type: DataTypes.TEXT },
-  assigned_to:   { type: DataTypes.INTEGER }
+  assigned_to:   { type: DataTypes.INTEGER },
+  page_id:       { type: DataTypes.STRING(50) }
 }, { tableName: 'leads' })
 
 const LeadAttribution = sequelize.define('LeadAttribution', {
@@ -239,6 +241,7 @@ const FacebookPage = sequelize.define('FacebookPage', {
   ai_system_prompt:     { type: DataTypes.TEXT },
   webhook_verify_token: { type: DataTypes.STRING(100), defaultValue: 'hatfixclean2026' },
   note:                 { type: DataTypes.TEXT },
+  pricing_rules:        { type: DataTypes.TEXT },
   profile_picture_url:  { type: DataTypes.STRING(500) },
 }, { tableName: 'facebook_pages' })
 

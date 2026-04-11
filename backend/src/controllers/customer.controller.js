@@ -12,8 +12,7 @@ const list = async (req, res) => {
         { facebook_name: { [Op.like]: `%${search}%` } }
       ]
     }
-    // TODO: add page_id column to Customer model, then uncomment:
-    // if (page_id) where.page_id = page_id
+        if (page_id) where.page_id = page_id
 
     const { count, rows } = await Customer.findAndCountAll({
       where,

@@ -1,5 +1,5 @@
 // Pricing Engine สำหรับ Hat Fix & Clean
-// Admin สามารถ override ได้ผ่าน SiteSetting
+// Admin สามารถ override ได้ผ่าน SiteSetting (global) หรือ per-page
 
 const DEFAULT_TIERS = [
   { min: 1,   max: 10,  price: 89 },
@@ -11,8 +11,17 @@ const DEFAULT_TIERS = [
 const DEFAULT_WASHING_SURCHARGE = 50  // บาท/ใบ
 const DEFAULT_SHIPPING_BASE     = 50  // บาท
 
-async function getPricingRules() {
+async function getPricingRules(pageId) {
   try {
+    // If pageId provided, try page-specific pricing first
+    if (pageId) {
+      const { FacebookPage } = require('../models')
+      const page = await FacebookPage.findOne({ where: { page_id: pageId }, raw: true })
+      if (page && page.pricing_rules) {
+        return JSON.parse(page.pricing_rules)
+      }
+    }
+    // Fallback to global site_settings
     const { SiteSetting } = require('../models')
     const setting = await SiteSetting.findOne({ where: { key: 'pricing_rules' } })
     if (setting) return JSON.parse(setting.value)
@@ -24,8 +33,8 @@ async function getPricingRules() {
   }
 }
 
-async function calculatePrice({ hat_count, washing_count = 0 }) {
-  const rules = await getPricingRules()
+async function calculatePrice({ hat_count, washing_count = 0, page_id }) {
+  const rules = await getPricingRules(page_id)
   const tiers = rules.tiers || DEFAULT_TIERS
 
   // หา tier ที่ตรงกับจำนวนหมวก

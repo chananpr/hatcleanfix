@@ -12,7 +12,7 @@ import { th } from 'date-fns/locale'
 
 function KPICard({ icon, label, value, sub, color = 'red' }) {
   const colors = {
-    red: 'bg-red-50 text-brand-red',
+    red: 'bg-yellow-50 text-brand-red',
     yellow: 'bg-yellow-50 text-yellow-600',
     blue: 'bg-blue-50 text-blue-600',
     green: 'bg-green-50 text-green-600',
@@ -134,7 +134,7 @@ export default function DashboardPage() {
                     <XAxis dataKey="status" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#FF0000" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="count" fill="#FFCC00" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

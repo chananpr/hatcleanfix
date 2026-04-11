@@ -3,7 +3,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: { red: '#FF0000', yellow: '#FFCC00', dark: '#1A1A1A' }
+        brand: { red: '#FFCC00', yellow: '#FFCC00', dark: '#1A1A1A' }
       },
       fontFamily: { sans: ['Kanit', 'sans-serif'] }
     }

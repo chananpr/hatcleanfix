@@ -169,15 +169,29 @@ export default function AiSettingsPage() {
               <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             <div>
-              <h3 className="text-base font-semibold text-white">AI ตอบกลับอัตโนมัติ</h3>
-              <p className="text-sm text-gray-400 mt-0.5">
-                {aiMode !== "off"
-                  ? "AI จะตอบลูกค้าอัตโนมัติใน Messenger เมื่อมีข้อความเข้า"
-                  : "ข้อความจะไม่ถูกตอบอัตโนมัติ — ต้องตอบเองจากหน้า Messenger"}
-              </p>
+              <h3 className="text-base font-semibold text-white">โหมด AI</h3>
+              <p className="text-sm text-gray-400 mt-0.5">เลือกโหมดการทำงานของ AI สำหรับเพจนี้</p>
             </div>
           </div>
-          
+        </div>
+
+        {/* 3-Mode Selector */}
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          <button onClick={() => handleModeChange("off")} className={`p-4 rounded-xl border-2 transition-all text-center cursor-pointer ${aiMode === "off" ? "border-gray-400 bg-gray-700/50" : "border-gray-700 bg-gray-900/30 hover:border-gray-500"}`}>
+            <div className="text-2xl mb-2">⏸️</div>
+            <div className={`text-sm font-semibold ${aiMode === "off" ? "text-white" : "text-gray-400"}`}>ปิด</div>
+            <div className="text-[10px] text-gray-500 mt-1">ไม่ตอบใครเลย</div>
+          </button>
+          <button onClick={() => handleModeChange("test")} className={`p-4 rounded-xl border-2 transition-all text-center cursor-pointer ${aiMode === "test" ? "border-amber-500 bg-amber-500/10" : "border-gray-700 bg-gray-900/30 hover:border-amber-500/50"}`}>
+            <div className="text-2xl mb-2">🧪</div>
+            <div className={`text-sm font-semibold ${aiMode === "test" ? "text-amber-400" : "text-gray-400"}`}>ทดสอบ</div>
+            <div className="text-[10px] text-gray-500 mt-1">ตอบเฉพาะพนักงาน</div>
+          </button>
+          <button onClick={() => handleModeChange("live")} className={`p-4 rounded-xl border-2 transition-all text-center cursor-pointer ${aiMode === "live" ? "border-green-500 bg-green-500/10" : "border-gray-700 bg-gray-900/30 hover:border-green-500/50"}`}>
+            <div className="text-2xl mb-2">🚀</div>
+            <div className={`text-sm font-semibold ${aiMode === "live" ? "text-green-400" : "text-gray-400"}`}>ใช้งานจริง</div>
+            <div className="text-[10px] text-gray-500 mt-1">ตอบลูกค้าทุกคน</div>
+          </button>
         </div>
 
         {/* Status indicator */}
@@ -187,7 +201,7 @@ export default function AiSettingsPage() {
               <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
             </div>
             <div>
-              <p className="text-sm text-green-400 font-medium">กำลังทำงาน</p>
+              <p className={"text-sm font-medium " + (aiMode === "test" ? "text-amber-400" : "text-green-400")}>{aiMode === "test" ? "🧪 โหมดทดสอบ — ตอบเฉพาะพนักงาน" : "🚀 ใช้งานจริง — ตอบลูกค้าทุกคน"}</p>
               <p className="text-xs text-green-400/70">AI ใช้ Claude Sonnet ในการตอบกลับ พร้อมอ่านข้อมูลลูกค้า ออเดอร์ และสินค้าจากระบบ</p>
             </div>
           </div>

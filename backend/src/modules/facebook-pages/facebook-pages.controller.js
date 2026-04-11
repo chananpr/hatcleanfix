@@ -3,17 +3,22 @@ const { success, error } = require("../../utils/response")
 const claudeService = require("../webhooks/claude-messenger.service")
 const axios = require("axios")
 
-// Fetch profile picture from Facebook Graph API
+// Fetch profile picture + name from Facebook Graph API
 async function fetchProfilePicture(page) {
   try {
-    const url = `https://graph.facebook.com/${page.page_id}/picture?redirect=false&type=square&access_token=${page.access_token}`
-    const res = await axios.get(url)
-    if (res.data?.data?.url) {
-      await page.update({ profile_picture_url: res.data.data.url })
-      return res.data.data.url
+    const res = await axios.get("https://graph.facebook.com/v19.0/" + page.page_id, {
+      params: { fields: "name,picture.width(200).height(200){url}", access_token: page.access_token }
+    })
+    const updates = {}
+    if (res.data.picture?.data?.url) updates.profile_picture_url = res.data.picture.data.url
+    if (res.data.name) updates.page_name = res.data.name
+    if (Object.keys(updates).length > 0) {
+      await page.update(updates)
+      console.log("[FB] Updated page:", res.data.name, "pic:", !!updates.profile_picture_url)
     }
+    return updates.profile_picture_url || null
   } catch (e) {
-    console.error("Failed to fetch profile pic:", e.message)
+    console.error("[FB] Failed to fetch profile:", e.response?.data?.error?.message || e.message)
   }
   return null
 }

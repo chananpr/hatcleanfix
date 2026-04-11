@@ -26,6 +26,10 @@ export const orders = {
   get: (id) => client.get(`/api/orders/${id}`).then((r) => r.data),
   create: (data) => client.post('/api/orders', data).then((r) => r.data),
   update: (id, data) => client.put(`/api/orders/${id}`, data).then((r) => r.data),
+  updateTracking: (id, data) => client.put(`/api/orders/${id}/tracking`, data).then(r => r.data),
+  uploadImages: (id, formData) => client.post(`/api/orders/${id}/typed-images`, formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  }).then(r => r.data),
   updateStatus: (id, status, note) =>
     client.patch(`/api/orders/${id}/status`, { status, note }).then((r) => r.data),
 }
@@ -46,6 +50,11 @@ export const users = {
   update: (id, data) => client.put(`/api/users/${id}`, data).then((r) => r.data),
   remove: (id) => client.delete(`/api/users/${id}`).then((r) => r.data),
   listRoles: () => client.get('/api/users/roles').then((r) => r.data),
+  myProfile: () => client.get("/api/users/me/profile").then(r => r.data),
+  updateProfile: (data) => client.put("/api/users/me/profile", data).then(r => r.data),
+  changePassword: (data) => client.put("/api/users/me/password", data).then(r => r.data),
+  linkFacebook: (data) => client.put("/api/users/me/facebook", data).then(r => r.data),
+  generateLinkCode: () => client.post("/api/users/me/link-code").then(r => r.data),
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -59,7 +68,7 @@ export const dashboard = {
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 export const pricing = {
-  getRules: () => client.get("/api/pricing/rules").then((r) => r.data),
+  getRules: (pageId) => client.get("/api/pricing/rules", { params: pageId ? { page_id: pageId } : {} }).then((r) => r.data),
   updateRules: (data) => client.put("/api/pricing/rules", data).then((r) => r.data),
   calculate: (data) => client.post("/api/pricing/calculate", data).then((r) => r.data),
 }

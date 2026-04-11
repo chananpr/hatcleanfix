@@ -1,8 +1,9 @@
 const { Op } = require('sequelize')
 const { Customer, CustomerAddress, Lead, Order } = require('../../models')
 
-const list = async ({ search, page = 1, limit = 20 }) => {
+const list = async ({ search, page = 1, limit = 20, page_id }) => {
   const where = {}
+  if (page_id) where.page_id = page_id
   if (search) {
     where[Op.or] = [
       { name: { [Op.like]: `%${search}%` } },

@@ -45,8 +45,8 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-brand-red shadow-xl shadow-red-500/30 mb-4">
-            <span className="text-white font-black text-3xl">H</span>
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-brand-red shadow-xl shadow-yellow-400/30 mb-4">
+            <span className="text-gray-900 font-black text-3xl">H</span>
           </div>
           <h1 className="text-3xl font-black text-white tracking-wide">HATZ</h1>
           <p className="text-white/50 text-sm mt-1">Hat Fix &amp; Clean — Admin Panel</p>
@@ -104,7 +104,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-brand-red text-white font-semibold rounded-lg hover:bg-red-600 active:bg-red-700 transition disabled:opacity-60 disabled:cursor-not-allowed mt-2 shadow-lg shadow-red-500/30"
+              className="w-full py-3 px-4 bg-brand-red text-gray-900 font-semibold rounded-lg hover:bg-yellow-400 active:bg-yellow-500 transition disabled:opacity-60 disabled:cursor-not-allowed mt-2 shadow-lg shadow-yellow-400/30"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

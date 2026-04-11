@@ -1,5 +1,7 @@
 require('dotenv').config()
 const express = require('express')
+const http = require('http')
+const { Server } = require('socket.io')
 const cors = require('cors')
 const logger = require('./utils/logger')
 
@@ -56,7 +58,35 @@ app.use((err, req, res, next) => {
   })
 })
 
-const server = app.listen(PORT, () => {
+const server = http.createServer(app)
+const io = new Server(server, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+})
+
+// Store io globally so other modules can use it
+app.set('io', io)
+
+io.on('connection', (socket) => {
+  console.log('[Socket.IO] Client connected:', socket.id)
+
+  // Join page room
+  socket.on('join_page', (pageId) => {
+    socket.join(`page_${pageId}`)
+    console.log('[Socket.IO] Joined page:', pageId)
+  })
+
+  socket.on('disconnect', () => {
+    console.log('[Socket.IO] Client disconnected:', socket.id)
+  })
+})
+
+// Connect IO to messenger services
+const messengerService = require('./modules/webhooks/messenger.service')
+messengerService.setIO(io)
+const claudeService = require('./modules/webhooks/claude-messenger.service')
+claudeService.setIO(io)
+
+server.listen(PORT, () => {
   logger.info(`HATZ API running on port ${PORT}`)
 })
 server.timeout = 300000

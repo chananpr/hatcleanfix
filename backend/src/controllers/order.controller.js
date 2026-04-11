@@ -6,8 +6,7 @@ const list = async (req, res) => {
     const where = {}
     if (status) where.status = status
     if (req.user.role === 'staff') where.assigned_to = req.user.id
-    // TODO: add page_id column to Order model, then uncomment:
-    // if (page_id) where.page_id = page_id
+        if (page_id) where.page_id = page_id
 
     const { count, rows } = await Order.findAndCountAll({
       where,

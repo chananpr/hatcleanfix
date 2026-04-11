@@ -9,8 +9,8 @@ const list = async (req, res) => {
     if (assigned_to) where.assigned_to = assigned_to
     // staff เห็นเฉพาะที่ assigned ให้ตัวเอง
     if (req.user.role === 'staff') where.assigned_to = req.user.id
-    // TODO: add page_id column to Lead model, then uncomment:
-    // if (page_id) where.page_id = page_id
+    // page_id filter enabled
+    if (page_id) where.page_id = page_id
 
     const { count, rows } = await Lead.findAndCountAll({
       where,
@@ -89,7 +89,8 @@ const convertToOrder = async (req, res) => {
       lead_id: lead.id,
       assigned_to: lead.assigned_to,
       hat_count: lead.hat_count,
-      status: 'draft'
+      status: 'draft',
+      page_id: lead.page_id
     })
 
     await lead.update({ status: 'converted' })

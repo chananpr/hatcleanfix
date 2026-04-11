@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { pricing } from "../api/index.js"
+import { usePage } from "../contexts/PageContext.jsx"
 import PageHeader from "../components/common/PageHeader.jsx"
 
 const DEFAULT_RULES = {
@@ -34,10 +35,12 @@ function calculatePrice(rules, hatCount, includeWashing, includeShipping) {
 
 export default function PricingPage() {
   const qc = useQueryClient()
+  const { selectedPage } = usePage()
+  const pageId = selectedPage?.page_id
 
   const { data: serverRules, isLoading } = useQuery({
-    queryKey: ["pricing-rules"],
-    queryFn: pricing.getRules,
+    queryKey: ["pricing-rules", pageId],
+    queryFn: () => pricing.getRules(pageId),
   })
 
   const [rules, setRules] = useState(null)
@@ -57,10 +60,15 @@ export default function PricingPage() {
     }
   }, [serverRules, dirty])
 
+  // Reset dirty state when page changes
+  useEffect(() => {
+    setDirty(false)
+  }, [pageId])
+
   const saveMutation = useMutation({
-    mutationFn: pricing.updateRules,
+    mutationFn: (data) => pricing.updateRules(pageId ? { ...data, page_id: pageId } : data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["pricing-rules"] })
+      qc.invalidateQueries({ queryKey: ["pricing-rules", pageId] })
       setDirty(false)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2500)
@@ -121,14 +129,14 @@ export default function PricingPage() {
 
   return (
     <div className="pb-24">
-      <PageHeader title="จัดการราคา" subtitle="ตารางราคาและค่าบริการ" />
+      <PageHeader title="จัดการราคา" subtitle={selectedPage ? `ราคาสำหรับ ${selectedPage.page_name || selectedPage.page_id}` : "ตารางราคาและค่าบริการ"} />
 
       {/* AI Info Badge */}
       <div className="mb-6 flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
         <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
         </svg>
-        <span className="text-sm text-red-300">AI จะใช้ข้อมูลราคานี้ในการตอบลูกค้า</span>
+        <span className="text-sm text-red-300">AI จะใช้ข้อมูลราคานี้ในการตอบลูกค้า{selectedPage ? ` (เพจ: ${selectedPage.page_name || selectedPage.page_id})` : ''}</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

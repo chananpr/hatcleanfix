@@ -72,7 +72,7 @@ export default function OrdersPage() {
             onClick={() => { setActiveTab(tab.key); setPage(1) }}
             className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition ${
               activeTab === tab.key
-                ? 'bg-brand-red text-white'
+                ? 'bg-brand-red text-gray-900'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
             }`}
           >

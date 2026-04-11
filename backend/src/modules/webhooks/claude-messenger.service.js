@@ -7,6 +7,10 @@ const { User,
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+// Socket.IO instance for real-time events
+let ioInstance = null
+function setIO(io) { ioInstance = io }
+
 // ============================================================
 // Claude AI Messenger Service — Multi-Page Support
 // Facebook → Backend → Claude AI → ตอบ Messenger (ตรง ไม่ผ่าน n8n)
@@ -138,7 +142,7 @@ async function buildCustomerContext(customer, thread, pageId) {
   // ดึงข้อมูลราคาจากระบบ
   try {
     const { getPricingRules } = require('../../services/pricing.service')
-    const pricing = await getPricingRules()
+    const pricing = await getPricingRules(pageId)
     if (pricing && pricing.tiers) {
       context += '\n--- ตารางราคา (ซ่อม/ทำความสะอาด) ---\n'
       for (const tier of pricing.tiers) {
@@ -401,6 +405,19 @@ async function handleImageMessage(senderPsid, imageUrls, customer, thread, pageC
       content: replyText
     })
 
+    // Emit real-time outbound message event (image reply)
+    if (ioInstance) {
+      ioInstance.to(`page_${pageConfig.page_id}`).emit('new_message', {
+        thread_id: thread.id,
+        customer_id: customer.id,
+        customer_name: customer.name || customer.facebook_name,
+        direction: outbound,
+        content: replyText,
+        page_id: pageConfig.page_id,
+        timestamp: new Date()
+      })
+    }
+
     console.log("[Vision] Replied:", replyText.substring(0, 80))
 
   } catch (err) {
@@ -453,7 +470,7 @@ async function handleMessage(senderPsid, messageText, customer, thread, isNewCus
     console.log(`[Claude] [${pageConfig?.page_name || 'default'}] Replied to ${customer.facebook_name || senderPsid}: ${reply.substring(0, 80)}...`)
 
   } catch (err) {
-    console.error('[Claude] Error generating reply:', err.message)
+    console.error('[Claude] Error:', err.message, err?.response?.data || '')
     // Fallback message
     await sendToMessenger(senderPsid, 'ขอโทษครับ ระบบขัดข้อง กรุณาทักมาใหม่อีกครั้งนะครับ 🙏', pageConfig).catch(() => {})
   }
@@ -466,4 +483,4 @@ function clearPageCache() {
 }
 
 function getDefaultPrompt() { return DEFAULT_SYSTEM_PROMPT }
-module.exports = { handleMessage, handleImageMessage, generateReply, analyzeImages, sendToMessenger, getPageConfig, clearPageCache, getDefaultPrompt }
+module.exports = { handleMessage, handleImageMessage, generateReply, analyzeImages, sendToMessenger, getPageConfig, clearPageCache, getDefaultPrompt, setIO }

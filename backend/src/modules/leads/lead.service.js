@@ -1,8 +1,9 @@
 const { Op } = require('sequelize')
 const { Lead, LeadAttribution, Customer, User, Order } = require('../../models')
 
-const list = async ({ status, assigned_to, page = 1, limit = 20 }, user) => {
+const list = async ({ status, assigned_to, page = 1, limit = 20, page_id }, user) => {
   const where = {}
+  if (page_id) where.page_id = page_id
   if (status) where.status = status
   if (assigned_to) where.assigned_to = assigned_to
   if (user.role === 'staff') where.assigned_to = user.id
