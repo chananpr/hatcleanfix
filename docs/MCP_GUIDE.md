@@ -2,6 +2,8 @@
 
 คู่มือนี้ใช้เป็น baseline context สำหรับ AI assistants ที่รองรับ MCP หรือมี workflow แบบ tool-augmented เช่น Claude, GPT, และ Gemini เพื่อช่วยพัฒนาโปรเจกต์ `hatcleanfix` ได้ตรงกับโครงสร้างจริงของระบบ ลดการเดา และลดความเสี่ยงจากการแก้ผิดส่วน
 
+เอกสาร companion สำหรับใช้งานระดับ project handbook อยู่ใน [docs/ai/README.md](ai/README.md)
+
 ## 1. เป้าหมายของเอกสารนี้
 
 - ทำให้ AI เข้าใจโครงสร้าง monorepo นี้ก่อนเริ่มแก้โค้ด
@@ -299,4 +301,3 @@ Report what changed, how it was verified, and what still needs manual checking.
 ## 13. Current Limitation
 
 เอกสารนี้ intentionally เขียนแบบ vendor-neutral เพื่อใช้ร่วมกันได้กับหลาย AI client หาก client ใดต้องใช้ syntax config MCP เฉพาะของตัวเอง เช่น path ของ config file, JSON schema, หรือ launch format ให้ใช้เอกสารนี้เป็น source of truth ฝั่ง project context แล้วค่อย map ไปยังรูปแบบ config ของ client นั้น
-
