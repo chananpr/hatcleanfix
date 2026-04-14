@@ -273,6 +273,10 @@ cd frontend && npm install && npm run dev    # → port 3000
 cd admin && npm install && npm run dev       # → port 3001
 ```
 
+## 📘 Development Docs
+
+- [MCP Development Guide](docs/MCP_GUIDE.md) — baseline project context for Claude, GPT, and Gemini during development
+
 ---
 
 ## 📁 Project Structure
