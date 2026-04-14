@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { customers } from '../api/index.js'
 import { usePage } from '../contexts/PageContext.jsx'
@@ -80,6 +81,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
+  const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', search, page, selectedPage?.page_id],
@@ -160,7 +162,7 @@ export default function CustomersPage() {
                 items.map((c) => (
                   <tr
                     key={c.id}
-                    onClick={() => setSelectedCustomer(c)}
+                    onClick={() => navigate("/customers/" + c.id)}
                     className="hover:bg-gray-50 cursor-pointer transition"
                   >
                     <td className="px-4 py-3 font-medium text-gray-900">{c.name}</td>

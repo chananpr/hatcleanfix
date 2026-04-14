@@ -39,4 +39,50 @@ const update = async (req, res) => {
   }
 }
 
-module.exports = { list, get, create, update }
+// ====== Address CRUD ======
+
+const addAddress = async (req, res) => {
+  try {
+    const addr = await customerService.addAddress(req.params.id, req.body)
+    if (!addr) return error(res, 'Customer not found', 404)
+    return success(res, addr, 'Address added', null, 201)
+  } catch (err) {
+    return error(res, err.message)
+  }
+}
+
+const updateAddress = async (req, res) => {
+  try {
+    const addr = await customerService.updateAddress(req.params.id, req.params.addressId, req.body)
+    if (!addr) return error(res, 'Address not found', 404)
+    return success(res, addr, 'Address updated')
+  } catch (err) {
+    return error(res, err.message)
+  }
+}
+
+const deleteAddress = async (req, res) => {
+  try {
+    const result = await customerService.deleteAddress(req.params.id, req.params.addressId)
+    if (!result) return error(res, 'Address not found', 404)
+    return success(res, null, 'Address deleted')
+  } catch (err) {
+    return error(res, err.message)
+  }
+}
+
+// ====== Address search (Thai) ======
+
+const searchAddress = async (req, res) => {
+  try {
+    const { q } = req.query
+    if (!q) return success(res, [])
+    const { searchAddressByZipcode } = require('thai-address-database')
+    const results = searchAddressByZipcode(q)
+    return success(res, results.slice(0, 20))
+  } catch (err) {
+    return error(res, err.message)
+  }
+}
+
+module.exports = { list, get, create, update, addAddress, updateAddress, deleteAddress, searchAddress }

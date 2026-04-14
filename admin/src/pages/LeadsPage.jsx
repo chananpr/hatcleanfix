@@ -38,19 +38,19 @@ function LeadDetailModal({ lead, onClose, onStatusChange, onConvert }) {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <div className="text-gray-500">ชื่อ</div>
-              <div className="font-medium">{lead.name}</div>
+              <div className="font-medium">{lead.Customer?.real_name || lead.Customer?.name || lead.Customer?.facebook_name || '—'}</div>
             </div>
             <div>
               <div className="text-gray-500">เบอร์โทร</div>
-              <div className="font-medium">{lead.phone}</div>
+              <div className="font-medium">{lead.Customer?.phone || '—'}</div>
             </div>
             <div>
               <div className="text-gray-500">Facebook</div>
-              <div className="font-medium">{lead.facebook_name || '—'}</div>
+              <div className="font-medium">{lead.Customer?.facebook_name || '—'}</div>
             </div>
             <div>
               <div className="text-gray-500">จังหวัด</div>
-              <div className="font-medium">{lead.province || '—'}</div>
+              <div className="font-medium">{lead.province || lead.Customer?.province || '—'}</div>
             </div>
             <div>
               <div className="text-gray-500">จำนวนหมวก</div>
@@ -228,10 +228,10 @@ export default function LeadsPage() {
               ) : (
                 items.map((lead) => (
                   <tr key={lead.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 font-medium text-gray-900">{lead.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{lead.phone}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{lead.Customer?.real_name || lead.Customer?.name || lead.Customer?.facebook_name || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{lead.Customer?.phone || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{lead.hat_count}</td>
-                    <td className="px-4 py-3 text-gray-600">{lead.province || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{lead.province || lead.Customer?.province || '—'}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={lead.status} type="lead" />
                     </td>

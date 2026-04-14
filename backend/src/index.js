@@ -42,6 +42,8 @@ app.use('/api/ai-chat',        require('./modules/ai-chat/ai-chat.routes'))
 app.use('/api/facebook-pages', require('./modules/facebook-pages/facebook-pages.routes'))
 app.use('/api/products', require('./modules/products/products.routes'))
 app.use('/api/conversations', require('./modules/conversations/conversations.routes'))
+app.use('/api/campaigns', require('./modules/campaigns/campaign.routes'))
+app.use('/api/address', require('./modules/address/address.routes'))
 
 // 404
 app.use((req, res) => {

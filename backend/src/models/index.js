@@ -42,6 +42,7 @@ const Customer = sequelize.define('Customer', {
   phone:              { type: DataTypes.STRING },
   facebook_psid:      { type: DataTypes.STRING, unique: true },
   facebook_name:      { type: DataTypes.STRING },
+  real_name:          { type: DataTypes.STRING },
   province:           { type: DataTypes.STRING },
   note:               { type: DataTypes.TEXT },
   source_campaign_id: { type: DataTypes.STRING },
@@ -56,6 +57,7 @@ const CustomerAddress = sequelize.define('CustomerAddress', {
   address:     { type: DataTypes.TEXT },
   province:    { type: DataTypes.STRING },
   district:    { type: DataTypes.STRING },
+  subdistrict: { type: DataTypes.STRING },
   postcode:    { type: DataTypes.STRING },
   is_default:  { type: DataTypes.BOOLEAN, defaultValue: false }
 }, { tableName: 'customer_addresses' })

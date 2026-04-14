@@ -8,6 +8,37 @@ import PageHeader from '../components/common/PageHeader.jsx'
 import { format, subDays } from 'date-fns'
 
 export default function AttributionPage() {
+  const [campaignNames, setCampaignNames] = useState({})
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
+  
+  // Fetch campaign name mappings
+  const { } = useQuery({
+    queryKey: ['campaignNames'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('https://api.hatfixclean.com/api/campaigns/names', {
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('hatz_token') }
+        })
+        const data = await res.json()
+        setCampaignNames(data.data || {})
+        return data.data || {}
+      } catch(e) { return {} }
+    }
+  })
+  
+  const saveCampaignName = async (id, name) => {
+    try {
+      await fetch('https://api.hatfixclean.com/api/campaigns/names', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('hatz_token') },
+        body: JSON.stringify({ id, name })
+      })
+      setCampaignNames(prev => ({ ...prev, [id]: name }))
+      setEditingId(null)
+    } catch(e) {}
+  }
+
   const today = new Date()
   const [dateFrom, setDateFrom] = useState(
     format(subDays(today, 29), 'yyyy-MM-dd')
@@ -151,7 +182,18 @@ export default function AttributionPage() {
                 campaigns.map((c, i) => (
                   <tr key={i} className="hover:bg-gray-50 transition">
                     <td className="px-4 py-3 font-medium text-gray-800">
-                      {c.campaign || '(ไม่ระบุ)'}
+                      {editingId === c.campaign ? (
+                        <div className="flex items-center gap-2">
+                          <input value={editName} onChange={e => setEditName(e.target.value)} className="border rounded px-2 py-1 text-sm w-40" autoFocus onKeyDown={e => { if (e.key === 'Enter') saveCampaignName(c.campaign, editName); if (e.key === 'Escape') setEditingId(null) }} />
+                          <button onClick={() => saveCampaignName(c.campaign, editName)} className="text-green-600 text-xs">✓</button>
+                          <button onClick={() => setEditingId(null)} className="text-red-600 text-xs">✕</button>
+                        </div>
+                      ) : (
+                        <span onClick={() => { setEditingId(c.campaign); setEditName(campaignNames[c.campaign] || c.campaign || '') }} className="cursor-pointer hover:text-blue-600" title="คลิกเพื่อแก้ไขชื่อ">
+                          {campaignNames[c.campaign] || c.campaign || '(ไม่ระบุ)'}
+                          <span className="ml-1 text-gray-400 text-xs">✏</span>
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right text-gray-700">{c.leads_count || 0}</td>
                     <td className="px-4 py-3 text-right text-gray-700">{c.orders_count || 0}</td>

@@ -265,16 +265,20 @@ async function analyzeImages(imageUrls, customer, thread, pageConfig) {
       system: `คุณเป็นผู้ช่วยวิเคราะห์รูปภาพสำหรับร้านซักหมวก Hat Fix & Clean
 ตอบเป็น JSON เท่านั้น ห้ามตอบข้อความอื่น
 
-วิเคราะห์รูปภาพและตอบในรูปแบบ JSON:
-{
-  "image_type": "hat" | "tracking_slip" | "payment_slip" | "other",
-  "hat_count": number | null,
-  "hat_details": [{"color": "", "type": "", "condition": ""}] | null,
-  "tracking_number": "string" | null,
-  "courier": "string" | null,
-  "amount": number | null,
-  "summary_th": "สรุปเป็นภาษาไทยสั้นๆ"
-}`,
+Analyze these images. If you see a shipping receipt, delivery label, or tracking slip:
+1. Extract the tracking number
+2. Identify the courier (Kerry, Flash, J&T, Thai Post, ไปรษณีย์ไทย, DHL, Ninja Van, Best Express, SCG Express)
+3. Return JSON: { "image_type": "tracking_slip", "tracking_number": "xxx", "courier": "xxx", "summary_th": "สรุปภาษาไทย" }
+
+If you see hat images:
+1. Count the number of hats
+2. Describe the type/condition
+3. Return JSON: { "image_type": "hat", "hat_count": X, "hat_details": [{"color": "", "type": "", "condition": ""}], "summary_th": "สรุป" }
+
+If you see a payment/transfer slip:
+Return JSON: { "image_type": "payment_slip", "amount": number|null, "summary_th": "สรุป" }
+
+If neither, return JSON: { "image_type": "other", "summary_th": "สรุป" }`,
       messages: [{
         role: "user",
         content: [
@@ -366,10 +370,20 @@ async function handleImageMessage(senderPsid, imageUrls, customer, thread, pageC
     } else if (analysis.image_type === "tracking_slip") {
       // บิลพัสดุ → อ่านเลขพัสดุ + อัพเดท Order
       if (analysis.tracking_number && activeOrder) {
+        const prevStatus = activeOrder.status
+        const newStatus = prevStatus === "awaiting_inbound_shipment" ? "inbound_shipped" : prevStatus
         await activeOrder.update({
           inbound_tracking: analysis.tracking_number,
           inbound_carrier: analysis.courier || null,
-          status: activeOrder.status === "awaiting_inbound_shipment" ? "inbound_shipped" : activeOrder.status
+          status: newStatus
+        })
+        // Create status log for tracking update
+        const { OrderStatusLog } = require("../../models")
+        await OrderStatusLog.create({
+          order_id: activeOrder.id,
+          from_status: prevStatus,
+          to_status: newStatus,
+          note: 'ลูกค้าส่งเลขพัสดุ: ' + analysis.tracking_number
         })
         replyText = `ได้รับเลขพัสดุแล้วครับ 📦\nเลขพัสดุ: ${analysis.tracking_number}`
         if (analysis.courier) replyText += `\nขนส่ง: ${analysis.courier}`
@@ -411,7 +425,7 @@ async function handleImageMessage(senderPsid, imageUrls, customer, thread, pageC
         thread_id: thread.id,
         customer_id: customer.id,
         customer_name: customer.name || customer.facebook_name,
-        direction: outbound,
+        direction: 'outbound',
         content: replyText,
         page_id: pageConfig.page_id,
         timestamp: new Date()

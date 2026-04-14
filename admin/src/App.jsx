@@ -19,6 +19,7 @@ import MessengerPage from "./pages/MessengerPage.jsx"
 import AiSettingsPage from "./pages/AiSettingsPage.jsx"
 import ProductsPage from "./pages/ProductsPage.jsx"
 import ProfilePage from "./pages/ProfilePage.jsx"
+import CustomerProfilePage from "./pages/CustomerProfilePage.jsx"
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:id" element={<OrderDetailPage />} />
         <Route path="customers" element={<CustomersPage />} />
+        <Route path="customers/:id" element={<CustomerProfilePage />} />
 
         <Route
           path="users"

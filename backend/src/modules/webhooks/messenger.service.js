@@ -1,7 +1,7 @@
 const axios = require('axios')
 const { User,
  
-  Customer, Lead, LeadAttribution, Order, Shipment,
+  Customer, Lead, LeadAttribution, Order, OrderImage, Shipment,
   ConversationThread, ConversationMessage
 } = require('../../models')
 const claudeService = require('./claude-messenger.service')
@@ -9,6 +9,105 @@ const claudeService = require('./claude-messenger.service')
 // Socket.IO instance for real-time events
 let ioInstance = null
 function setIO(io) { ioInstance = io }
+
+// Download image from Facebook CDN and upload to S3
+async function downloadAndUploadImage(url, folder) {
+  try {
+    const { s3Client, S3_BUCKET, getPublicUrl } = require('../../config/s3')
+    const { PutObjectCommand } = require('@aws-sdk/client-s3')
+    const imgRes = await axios.get(url, { responseType: 'arraybuffer', timeout: 10000 })
+    const ext = '.jpg'
+    const key = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`
+    await s3Client.send(new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+      Body: Buffer.from(imgRes.data),
+      ContentType: 'image/jpeg'
+    }))
+    return getPublicUrl(key)
+  } catch(e) {
+    console.error('[S3] Failed to upload image:', e.message)
+    return url // fallback to original URL
+  }
+}
+
+
+
+// Smart Thai Address Parser with fuzzy matching
+function parseThaiAddress(text) {
+  const result = { name: '', phone: '', address: '', subdistrict: '', district: '', province: '', postcode: '' }
+  const { searchAddressByDistrict, searchAddressByAmphoe } = require('thai-address-database')
+  
+  // 1. Extract phone
+  const phoneMatch = text.match(/0[0-9]{8,9}/)
+  if (phoneMatch) { result.phone = phoneMatch[0]; text = text.replace(phoneMatch[0], '').trim() }
+  
+  // 2. Extract zipcode
+  const zipMatch = text.match(/(?<!\d)([1-9]\d{4})(?!\d)/)
+  if (zipMatch) { result.postcode = zipMatch[1]; text = text.replace(zipMatch[1], '').trim() }
+  
+  // 3. Extract raw keywords
+  const subdMatch = text.match(/(?:แขวง|ตำบล|ต\.)\s*([ก-๙]+)/)
+  if (subdMatch) result.subdistrict = subdMatch[1].trim()
+  
+  const distMatch = text.match(/(?:เขต|อำเภอ|อ\.)\s*([ก-๙]+)/)
+  if (distMatch) result.district = distMatch[1].trim()
+  
+  const provMatch = text.match(/(?:จังหวัด|จ\.|กทม|กรุงเทพ)\s*([ก-๙]*)/)
+  if (provMatch) result.province = provMatch[1]?.trim() || 'กรุงเทพมหานคร'
+  
+  // 4. Fuzzy search — try exact first, then prefix
+  function fuzzyFind(subdistrict, district) {
+    let results = []
+    if (subdistrict) results = searchAddressByDistrict(subdistrict)
+    if (results.length > 0) return results
+    if (district) results = searchAddressByAmphoe(district)
+    if (results.length > 0) return results
+    
+    // Prefix search — progressively shorter
+    const tryPrefix = (text, fn) => {
+      for (let len = text.length - 1; len >= 2; len--) {
+        const r = fn(text.substring(0, len))
+        if (r.length > 0 && r.length <= 20) return r
+      }
+      return []
+    }
+    if (subdistrict) { results = tryPrefix(subdistrict, searchAddressByDistrict); if (results.length > 0) return results }
+    if (district) { results = tryPrefix(district, searchAddressByAmphoe); if (results.length > 0) return results }
+    return []
+  }
+  
+  // 5. Auto-complete from DB
+  if (!result.postcode || !result.province || !result.district || !result.subdistrict) {
+    const dbResults = fuzzyFind(result.subdistrict, result.district)
+    if (dbResults.length > 0) {
+      // Find best match — prefer results where both district AND subdistrict partially match
+      let best = dbResults[0]
+      if (result.district && result.subdistrict) {
+        const betterMatch = dbResults.find(r => 
+          r.amphoe.startsWith(result.district.substring(0, 2)) || 
+          r.district.startsWith(result.subdistrict.substring(0, 2))
+        )
+        if (betterMatch) best = betterMatch
+      }
+      
+      if (!result.postcode) result.postcode = String(best.zipcode)
+      if (!result.province) result.province = best.province
+      result.district = best.amphoe       // Use correct spelling from DB
+      result.subdistrict = best.district   // Use correct spelling from DB
+    }
+  }
+  
+  // 6. Name — Thai text before first number
+  const nameMatch = text.match(/^([ก-๙a-zA-Z\s\.]+?)(?=\s*\d)/)
+  if (nameMatch) result.name = nameMatch[1].trim()
+  
+  // 7. Street address
+  const addrMatch = text.match(/(\d+[\/\-\d]*\s*[^แตอจเ]*?)(?=\s*(?:แขวง|ตำบล|ต\.|เขต|อำเภอ|อ\.|จังหวัด|จ\.))/)
+  if (addrMatch) result.address = addrMatch[1].replace(/\n/g, ' ').trim()
+  
+  return result
+}
 
 // ============================================================
 // สถาปัตยกรรมใหม่: Claude ตรง + Multi-Page Support
@@ -41,7 +140,60 @@ const handleMessenger = async (req, res) => {
     const pageConfig = await claudeService.getPageConfig(pageId)
 
     for (const event of entry.messaging) {
-      if (event.message?.is_echo) continue
+      // Handle echo messages (admin replies from Facebook page)
+      if (event.message?.is_echo) {
+        try {
+          const recipientPsid = event.recipient?.id === pageId ? event.sender?.id : event.recipient?.id
+          if (!recipientPsid || recipientPsid === pageId) continue
+          
+          const echoCustomer = await Customer.findOne({ where: { facebook_psid: recipientPsid } })
+          if (echoCustomer) {
+            let echoThread = await ConversationThread.findOne({
+              where: { customer_id: echoCustomer.id, platform: 'messenger', page_id: pageId }
+            })
+            if (!echoThread) {
+              echoThread = await ConversationThread.create({
+                customer_id: echoCustomer.id, platform: 'messenger', platform_thread_id: recipientPsid, page_id: pageId
+              })
+            }
+            
+            const echoText = event.message?.text || '[ไฟล์แนบ]'
+            const echoImgs = (event.message?.attachments || []).filter(a => a.type === 'image').map(a => a.payload?.url).filter(Boolean)
+            
+            // Download images to S3
+            const echoS3Urls = []
+            for (const url of echoImgs) {
+              const s3Url = await downloadAndUploadImage(url, 'messenger-images/admin')
+              echoS3Urls.push(s3Url)
+            }
+            
+            await ConversationMessage.create({
+              thread_id: echoThread.id,
+              direction: 'outbound',
+              content: echoImgs.length > 0 && !event.message?.text ? '[รูปภาพ ' + echoImgs.length + ' รูป]' : echoText,
+              ai_extracted: echoS3Urls.length > 0 ? { image_urls: echoS3Urls } : null
+            })
+            
+            await echoThread.update({ updatedAt: new Date() })
+            
+            // Emit real-time
+            if (ioInstance) {
+              ioInstance.to('page_' + pageId).emit('new_message', {
+                thread_id: echoThread.id,
+                customer_id: echoCustomer.id,
+                customer_name: echoCustomer.name || echoCustomer.facebook_name || '',
+                direction: 'outbound',
+                content: echoText,
+                page_id: pageId,
+                timestamp: new Date()
+              })
+            }
+          }
+        } catch(echoErr) {
+          console.error('[Echo] Error:', echoErr.message)
+        }
+        continue
+      }
       if (!event.message && !event.postback) continue
 
       const senderPsid = event.sender.id
@@ -53,15 +205,33 @@ const handleMessenger = async (req, res) => {
 
         if (!customer) {
           let fbName = ''
+          let fbPic = ''
+          // Method 1: Try Graph API
           try {
             const profileRes = await axios.get(
               `https://graph.facebook.com/v19.0/${senderPsid}`,
               { params: { fields: 'name,profile_pic', access_token: pageConfig.access_token } }
             )
             fbName = profileRes.data.name || ''
-            var fbPic = profileRes.data.profile_pic || ''
+            fbPic = profileRes.data.profile_pic || ''
           } catch (e) {
-            console.error('Failed to get FB profile:', e.message)
+            // Method 2: Try Conversations API — ดึง conversation ล่าสุดที่เพิ่งเปิด
+            try {
+              const convRes = await axios.get(
+                `https://graph.facebook.com/v19.0/${pageId}/conversations`,
+                { params: { access_token: pageConfig.access_token, limit: 1, fields: 'participants,updated_time' } }
+              )
+              const latestConv = convRes.data.data?.[0]
+              if (latestConv) {
+                const p = latestConv.participants?.data?.find(x => x.id !== pageId)
+                if (p && p.name) {
+                  fbName = p.name
+                  console.log('[FB] Got name from latest conversation:', fbName)
+                }
+              }
+            } catch (e2) {
+              console.error('[FB] Both methods failed:', e.message)
+            }
           }
           customer = await Customer.create({
             facebook_psid: senderPsid,
@@ -71,6 +241,15 @@ const handleMessenger = async (req, res) => {
             page_id: pageId
           })
           console.log(`[${pageConfig.page_name}] New customer: ${fbName} (${senderPsid})`)
+          
+          // Emit real-time new customer
+          if (ioInstance) {
+            ioInstance.to('page_' + pageId).emit('customer_created', {
+              customer_id: customer.id,
+              name: fbName,
+              page_id: pageId
+            })
+          }
         } else {
           // ลูกค้าเก่า — อัพเดทรูป + PSID ถ้ายังไม่มี
           const custUpdates = {}
@@ -120,9 +299,32 @@ const handleMessenger = async (req, res) => {
           const likeStickerIds = ['369239263222822', '369239343222814', '369239383222810']
           messageType = likeStickerIds.includes(String(event.message.sticker_id)) ? 'like' : 'sticker'
           if (!displayText) displayText = messageType === 'like' ? '👍' : '[สติกเกอร์]'
-        } else if (imageUrls.length > 0 && !displayText) {
-          messageType = 'image'
-          displayText = `[ส่งรูปภาพ ${imageUrls.length} รูป]`
+        }
+        
+        // Process images regardless of text
+        if (imageUrls.length > 0) {
+          messageType = displayText ? 'text_with_image' : 'image'
+          // Download from Facebook CDN and upload to S3
+          const s3Urls = []
+          for (const fbUrl of imageUrls) {
+            const s3Url = await downloadAndUploadImage(fbUrl, `messenger-images/${customer.id}`)
+            s3Urls.push(s3Url)
+          }
+          displayText = `[รูปภาพ ${s3Urls.length} รูป]`
+          // Store S3 URLs - will be added to extracted after step 4
+          var _s3ImageUrls = s3Urls
+
+          // Save as OrderImage if there is an active order
+          const activeOrder = await Order.findOne({
+            where: { customer_id: customer.id, status: ['draft','awaiting_inbound_shipment','inbound_shipped','received','in_progress'] },
+            order: [['createdAt', 'DESC']]
+          })
+          if (activeOrder) {
+            for (const s3Url of s3Urls) {
+              await OrderImage.create({ order_id: activeOrder.id, image_type: 'before', url: s3Url, note: 'จาก Messenger' })
+            }
+            console.log(`[S3] Saved ${s3Urls.length} images to OrderImage for order #${activeOrder.id}`)
+          }
         } else if (attachments.length > 0 && !displayText) {
           messageType = attachments[0]?.type || 'attachment'
           displayText = `[ส่ง${messageType}]`
@@ -132,6 +334,9 @@ const handleMessenger = async (req, res) => {
         let extracted = {}
         if (messageText && messageText.length > 1) {
           extracted = await extractCustomerInfo(messageText)
+        }
+        if (typeof _s3ImageUrls !== 'undefined' && _s3ImageUrls) {
+          extracted.image_urls = _s3ImageUrls
         }
 
         // 5) อัพเดทข้อมูลลูกค้า realtime
@@ -178,6 +383,60 @@ const handleMessenger = async (req, res) => {
           }
         }
 
+        // 5.5) Extract Thai address from message — smart parser
+        const hasAddressKeywords = messageText?.match(/แขวง|เขต|ตำบล|ต\.|อำเภอ|อ\.|จังหวัด|จ\.|หมู่|ม\.|ซอย|ซ\.|ถนน|ถ\./)
+        const hasHouseNumber = messageText?.match(/\d+[\/\s]/)
+        const hasZipcode = messageText?.match(/(?<!\d)[1-9]\d{4}(?!\d)/)
+        const looksLikeAddress = (hasAddressKeywords && (hasHouseNumber || messageText?.length > 20)) || hasZipcode
+
+        if (looksLikeAddress && messageText) {
+          try {
+            const parsed = parseThaiAddress(messageText)
+            const { CustomerAddress } = require('../../models')
+            
+            // Check duplicate
+            const existingAddr = await CustomerAddress.findOne({
+              where: { customer_id: customer.id, address: messageText.trim() }
+            })
+            
+            if (!existingAddr) {
+              await CustomerAddress.create({
+                customer_id: customer.id,
+                name: parsed.name || customer.name || customer.facebook_name || '',
+                phone: parsed.phone || customer.phone || '',
+                address: parsed.address || messageText.trim(),
+                postcode: parsed.postcode || '',
+                province: parsed.province || '',
+                district: parsed.district || '',
+                subdistrict: parsed.subdistrict || '',
+                is_default: true
+              })
+              
+              // Update customer info
+              const custUpdates = {}
+              if (parsed.phone && !customer.phone) custUpdates.phone = parsed.phone
+              if (parsed.province && !customer.province) custUpdates.province = parsed.province
+              if (parsed.name && !customer.real_name) custUpdates.real_name = parsed.name
+              if (Object.keys(custUpdates).length > 0) await customer.update(custUpdates)
+              
+              console.log('[Address] Saved:', parsed.name, parsed.district, parsed.province, parsed.postcode)
+              extracted.address_saved = true
+              extracted.address = parsed
+              
+              if (ioInstance) {
+                ioInstance.to('page_' + pageId).emit('customer_updated', {
+                  customer_id: customer.id,
+                  type: 'address_added',
+                  address: parsed,
+                  page_id: pageId
+                })
+              }
+            }
+          } catch(addrErr) {
+            console.error('[Address] Error:', addrErr.message)
+          }
+        }
+
         // 6) บันทึกข้อความขาเข้า
         await ConversationMessage.create({
           thread_id: thread.id,
@@ -210,6 +469,17 @@ const handleMessenger = async (req, res) => {
         })
         if (!activeLead) {
           const lead = await Lead.create({ customer_id: customer.id, status: 'new', page_id: pageId })
+          
+          // Emit real-time lead created
+          if (ioInstance) {
+            ioInstance.to('page_' + pageId).emit('lead_created', {
+              lead_id: lead.id,
+              customer_id: customer.id,
+              customer_name: customer.name || customer.facebook_name || '',
+              page_id: pageId
+            })
+          }
+          
           const referral = event.referral || event.postback?.referral || event.message?.referral || null
           if (referral) {
             const ref = referral.ref || ''

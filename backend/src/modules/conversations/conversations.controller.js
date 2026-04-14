@@ -1,5 +1,5 @@
 const {
-  Customer, ConversationThread, ConversationMessage, FacebookPage, Lead, Order
+  sequelize, Customer, ConversationThread, ConversationMessage, FacebookPage, Lead, Order
 } = require('../../models')
 const claudeService = require('../webhooks/claude-messenger.service')
 const { success, error } = require('../../utils/response')
@@ -11,14 +11,29 @@ const listThreads = async (req, res) => {
     if (req.query.page_id) {
       where.page_id = req.query.page_id
     }
-    const threads = await ConversationThread.findAll({
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 20
+    const offset = (page - 1) * limit
+
+    // First sync thread updatedAt with latest message
+    await sequelize.query(`
+      UPDATE conversation_threads ct
+      SET updatedAt = COALESCE(
+        (SELECT MAX(createdAt) FROM conversation_messages WHERE thread_id = ct.id),
+        ct.updatedAt
+      )
+      WHERE ct.page_id = :pageId
+    `, { replacements: { pageId: where.page_id || '%' } })
+
+    const { count: totalCount, rows: threads } = await ConversationThread.findAndCountAll({
       where,
       include: [{
         model: Customer,
         attributes: ['id', 'name', 'facebook_name', 'facebook_psid', 'phone', 'province', 'profile_picture_url']
       }],
       order: [['updatedAt', 'DESC']],
-      limit: 50
+      limit,
+      offset
     })
     
     // Add last_message for each thread
@@ -36,7 +51,7 @@ const listThreads = async (req, res) => {
       return json
     }))
     
-    return success(res, threadsWithLastMsg)
+    return success(res, { threads: threadsWithLastMsg, total: totalCount, page, hasMore: offset + limit < totalCount })
   } catch (err) {
     return error(res, err.message)
   }

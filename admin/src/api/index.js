@@ -38,8 +38,14 @@ export const orders = {
 export const customers = {
   list: (params) => client.get('/api/customers', { params }).then((r) => r.data),
   get: (id) => client.get(`/api/customers/${id}`).then((r) => r.data),
+  getProfile: (id) => client.get(`/api/customers/${id}`).then(r => r.data),
   create: (data) => client.post('/api/customers', data).then((r) => r.data),
   update: (id, data) => client.put(`/api/customers/${id}`, data).then((r) => r.data),
+  updateCustomer: (id, data) => client.put(`/api/customers/${id}`, data).then(r => r.data),
+  addAddress: (id, data) => client.post(`/api/customers/${id}/addresses`, data).then(r => r.data),
+  updateAddress: (id, addrId, data) => client.put(`/api/customers/${id}/addresses/${addrId}`, data).then(r => r.data),
+  deleteAddress: (id, addrId) => client.delete(`/api/customers/${id}/addresses/${addrId}`).then(r => r.data),
+  searchAddress: (q) => client.get('/api/address/search', { params: { q } }).then(r => r.data),
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -136,7 +142,7 @@ export const facebookPages = {
 
 // ─── Conversations (Messenger) ───────────────────────────────────────────────
 export const conversations = {
-  list: (pageId) => client.get('/api/conversations', { params: { page_id: pageId } }).then((r) => r.data),
+  list: (pageId, page = 1) => client.get('/api/conversations', { params: { page_id: pageId, page, limit: 20 } }).then((r) => r.data),
   getMessages: (threadId) => client.get(`/api/conversations/${threadId}/messages`).then((r) => r.data),
   aiReply: (threadId) => client.post(`/api/conversations/${threadId}/ai-reply`).then((r) => r.data),
   manualReply: (threadId, message) => client.post(`/api/conversations/${threadId}/manual-reply`, { message }).then((r) => r.data),

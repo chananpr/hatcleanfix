@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import { conversations } from '../api/index.js'
 import { usePage } from '../contexts/PageContext.jsx'
@@ -33,9 +34,14 @@ export default function MessengerPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [pageNum, setPageNum] = useState(1)
   const messagesEndRef = useRef(null)
   const pollRef = useRef(null)
   const socketRef = useRef(null)
+  const threadListRef = useRef(null)
+  const navigate = useNavigate()
 
   const selectedThread = threads.find(t => t.thread_id === selectedThreadId || t.id === selectedThreadId)
 
@@ -52,7 +58,10 @@ export default function MessengerPage() {
     }
     try {
       const data = await conversations.list(selectedPage.page_id)
-      const raw = data.data || data || []
+      const response = data.data || data || {}
+      const raw = response.threads || response || []
+      if (response.hasMore !== undefined) setHasMore(response.hasMore)
+      setPageNum(1)
       setThreads(raw.map(t => ({
         ...t,
         thread_id: t.id,
@@ -63,7 +72,8 @@ export default function MessengerPage() {
         customer_name: t.Customer?.name || t.customer_name || '',
         phone: t.Customer?.phone || t.phone || '',
         province: t.Customer?.province || t.province || '',
-        platform_thread_id: t.platform_thread_id || ''
+        platform_thread_id: t.platform_thread_id || '',
+        customer_id: t.customer_id || t.Customer?.id || null
       })))
     } catch (err) {
       console.error('Failed to fetch threads:', err)
@@ -149,6 +159,25 @@ export default function MessengerPage() {
     })
 
     // Listen for new threads
+    socket.on('customer_updated', (data) => {
+      console.log('[Socket.IO] customer_updated:', data.type)
+      // Update thread list with new customer info
+      setThreads(prev => prev.map(t => {
+        if (String(t.customer_id) === String(data.customer_id) || (t.Customer && String(t.Customer.id) === String(data.customer_id))) {
+          return { ...t, province: data.province || t.province }
+        }
+        return t
+      }))
+    })
+
+    socket.on('customer_created', (data) => {
+      console.log('[Socket.IO] customer_created:', data.name)
+    })
+
+    socket.on('lead_created', (data) => {
+      console.log('[Socket.IO] lead_created:', data.lead_id)
+    })
+
     socket.on('new_thread', () => {
       fetchThreads()
     })
@@ -157,6 +186,54 @@ export default function MessengerPage() {
       socket.disconnect()
     }
   }, [selectedPage?.page_id, selectedThreadId, fetchThreads])
+
+
+  // Load more threads on scroll
+  const loadMoreThreads = useCallback(async () => {
+    if (!hasMore || loadingMore || !selectedPage?.page_id) return
+    setLoadingMore(true)
+    try {
+      const nextPage = pageNum + 1
+      const data = await conversations.list(selectedPage.page_id, nextPage)
+      const response = data.data || data || {}
+      const newThreads = (response.threads || response || []).map(t => ({
+        ...t,
+        thread_id: t.id,
+        facebook_name: t.Customer?.facebook_name || t.Customer?.name || t.facebook_name || '',
+        last_message: t.last_message || null,
+        last_message_at: t.last_message_at || t.updatedAt,
+        customer_name: t.Customer?.name || t.customer_name || '',
+        phone: t.Customer?.phone || t.phone || '',
+        province: t.Customer?.province || t.province || '',
+        platform_thread_id: t.platform_thread_id || ''
+      }))
+      setThreads(prev => {
+        const existingIds = new Set(prev.map(t => t.thread_id || t.id))
+        const unique = newThreads.filter(t => !existingIds.has(t.thread_id || t.id))
+        return [...prev, ...unique]
+      })
+      setPageNum(nextPage)
+      if (response.hasMore !== undefined) setHasMore(response.hasMore)
+      else setHasMore(newThreads.length >= 20)
+    } catch(e) {
+      console.error('Load more failed:', e)
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [hasMore, loadingMore, selectedPage?.page_id, pageNum])
+
+  // Scroll event on thread list
+  useEffect(() => {
+    const el = threadListRef.current
+    if (!el) return
+    const handleScroll = () => {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 50) {
+        loadMoreThreads()
+      }
+    }
+    el.addEventListener('scroll', handleScroll)
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [loadMoreThreads])
 
   // When selecting a thread
   const selectThread = (threadId) => {
@@ -251,7 +328,7 @@ export default function MessengerPage() {
         </div>
 
         {/* Thread List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" ref={threadListRef}>
           {loadingThreads ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-600 border-t-red-500" />
@@ -304,6 +381,15 @@ export default function MessengerPage() {
               )
             })
           )}
+          {loadingMore && (
+            <div className="flex items-center justify-center py-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-600 border-t-red-500" />
+              <span className="ml-2 text-xs text-gray-500">loading more...</span>
+            </div>
+          )}
+          {!hasMore && threads.length > 0 && !loadingThreads && (
+            <div className="text-center text-gray-600 text-xs py-3">--- end ---</div>
+          )}
         </div>
       </div>
 
@@ -327,7 +413,12 @@ export default function MessengerPage() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">
-                  {selectedThread?.facebook_name || selectedThread?.customer_name || 'ลูกค้า'}
+                  {selectedThread?.customer_id ? (
+                    <button onClick={() => navigate('/customers/' + selectedThread.customer_id)}
+                      className="hover:text-red-600 hover:underline transition">
+                      {selectedThread?.facebook_name || selectedThread?.customer_name || 'ลูกค้า'}
+                    </button>
+                  ) : (selectedThread?.facebook_name || selectedThread?.customer_name || 'ลูกค้า')}
                 </h3>
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   {selectedPage?.page_name && (
@@ -395,7 +486,25 @@ export default function MessengerPage() {
                                 : 'bg-red-600 text-white rounded-br-md'
                           }`}
                         >
-                          {msg.message || msg.text || msg.content}
+                          {(() => {
+                            const content = msg.message || msg.text || msg.content || ''
+                            const imgUrls = msg.ai_extracted?.image_urls || msg.image_urls || []
+                            return (
+                              <>
+                                {imgUrls.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mb-1">
+                                    {imgUrls.map((url, i) => (
+                                      <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                        <img src={url} alt={"รูป " + (i+1)} className="max-w-[200px] max-h-[200px] rounded-lg object-cover" />
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                                {content && !content.startsWith('[รูปภาพ') && content}
+                                {content && content.startsWith('[รูปภาพ') && imgUrls.length === 0 && content}
+                              </>
+                            )
+                          })()}
                         </div>
                         {/* Timestamp */}
                         <div className={`text-[10px] text-gray-400 mt-0.5 ${isInbound ? 'text-left' : 'text-right'}`}>

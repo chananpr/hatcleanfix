@@ -11,7 +11,7 @@ const list = async ({ status, assigned_to, page = 1, limit = 20, page_id }, user
   const { count, rows } = await Lead.findAndCountAll({
     where,
     include: [
-      { model: Customer, attributes: ['id', 'name', 'phone', 'facebook_name'] },
+      { model: Customer, attributes: ['id', 'name', 'phone', 'facebook_name', 'real_name', 'province', 'profile_picture_url'] },
       { model: LeadAttribution },
       { model: User, as: 'assignee', attributes: ['id', 'name'], foreignKey: 'assigned_to' }
     ],
